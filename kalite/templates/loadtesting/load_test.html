@@ -52,11 +52,13 @@
         
         <script>
         
-            var fastInterval = 1000;
+            var fastInterval = 3000;
             var slowInterval = 10000;
         
             var PuppetModel = Backbone.Model.extend({
-                
+                defaults: {
+                    clickDelay: fastInterval
+                }
             });
             
             var PuppetView = Backbone.View.extend({
@@ -157,7 +159,6 @@
                     this.window = this.el.contentWindow;
                     this.$("a[href!='']").click(this.startTimer);
                     this._triggerLoadEvents(null, this.model.get("url"));
-                    this.model.set("clickDelay", fastInterval);
                 },
                 
                 _triggerLoadEvents: function(err, data) {
@@ -273,58 +274,16 @@
             var exercise_sequence = [
                 function(input, callback) {
                     this.goto("/math/arithmetic/fractions/understanding_fractions/e/recognizing_fractions_0.5/", callback);
-                },
-                function(input, callback) {
-                    this.$("#solutionarea input").val(100).keypress()
-                    this.click("#check-answer-button");
-                    callback()
-                },
-                function(input, callback) {
-                    this.$("#solutionarea input").val(100).keypress()
-                    this.click("#check-answer-button");
-                    callback()
-                },
-                function(input, callback) {
-                    this.$("#solutionarea input").val(100).keypress()
-                    this.click("#check-answer-button");
-                    callback()
-                },
-                function(input, callback) {
-                    this.$("#solutionarea input").val(100).keypress()
-                    this.click("#check-answer-button");
-                    callback()
-                },
-                function(input, callback) {
-                    this.$("#solutionarea input").val(100).keypress()
-                    this.click("#check-answer-button");
-                    callback()
-                },
-                function(input, callback) {
-                    this.$("#solutionarea input").val(100).keypress()
-                    this.click("#check-answer-button");
-                    callback()
-                },
-                function(input, callback) {
-                    this.$("#solutionarea input").val(100).keypress()
-                    this.click("#check-answer-button");
-                    callback()
-                },
-                function(input, callback) {
-                    this.$("#solutionarea input").val(100).keypress()
-                    this.click("#check-answer-button");
-                    callback()
-                },
-                function(input, callback) {
-                    this.$("#solutionarea input").val(100).keypress()
-                    this.click("#check-answer-button");
-                    callback()
-                },
-                function(input, callback) {
-                    this.$("#solutionarea input").val(100).keypress()
-                    this.click("#check-answer-button");
-                    callback()
-                }
-            ]
+                }];
+            for (var i=0; i < 10; i++) {
+                exercise_sequence = exercise_sequence.concat([
+                    function(input, callback) {
+                        this.$("#solutionarea input").val(100).keypress()
+                        this.click("#check-answer-button");
+                        callback()
+                    }                
+                ]);
+            }
             
             var login_sequence = [
                 function(input, callback) {
@@ -342,14 +301,14 @@
             
             $(function() {
                 window.model = new PuppetModel({
-                    clickDelay: fastInterval
+                    // clickDelay: slowInterval
                 });
                 window.puppet = new PuppetView({model: model, el: $("#puppet")});
                 window.infobar = new InfoBarView({model: model, el: $("#infobar")});
                 puppet.goto(window.location.hash.slice(1) || "/");
                 
                 function watchVideos() {
-                    if(Math.random()<0.9){
+                    if(Math.random()<0.0){
                         puppet.watchVideo(watchVideos);
                     } else {
                         puppet.watchExercise(watchVideos);
@@ -370,6 +329,7 @@
             <div class="status"></div>
             <div class="errorcount"></div>
         </div>
+        <div style="clear: both;"></div>
         <iframe id="puppet"></iframe>
     </body>
 </html>
