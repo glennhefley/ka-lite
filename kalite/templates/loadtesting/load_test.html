@@ -30,7 +30,7 @@
             
             #infobar .url {
                 float: left;
-                width: 40%;
+                width: 30%;
                 margin-left: 5px;
                 overflow: hidden;
             }
@@ -39,6 +39,12 @@
                 float: left;
                 width: 20%;
                 margin-left: 15px;
+            }
+
+            #infobar .timeWaiting {
+                float: left;
+                width: 20%;
+                margin-left: 15px;                
             }
             
             #infobar .errorcount {
@@ -52,7 +58,7 @@
         
         <script>
         
-            var fastInterval = 3000;
+            var fastInterval = 5000;
             var slowInterval = 10000;
         
             var PuppetModel = Backbone.Model.extend({
@@ -69,6 +75,7 @@
                     this.$el.load(this._pageLoaded);
                     this._loadEvents = [];
                     this.render();
+                    this.startIntervalTimer();
                 },
                 
                 render: function() {
@@ -133,9 +140,20 @@
                 startTimer: function() {
                     this.model.set({
                         startTime: new Date(),
+                        timeWaiting: 0,
                         status: "loading",
                         loadTime: null
                     });
+                },
+                
+                updateTimeWaiting: function() {
+                    this.model.set({
+                        timeWaiting: (new Date()) - this.model.get("startTime")
+                    });
+                },
+                
+                startIntervalTimer: function() {
+                    setInterval(this.updateTimeWaiting, 1000);
                 },
                 
                 _pageLoaded: function() {
@@ -178,7 +196,7 @@
                     this.runSequence(video_sequence, null, callback);
                 },
                 
-                watchExercise: function(callback) {
+                doExercise: function(callback) {
                     this.runSequence(exercise_sequence, null, callback);
                 },
                 
@@ -215,11 +233,21 @@
                     this.model.bind("change:url", this._updateURL);
                     this.model.bind("change:status", this._updateStatus);
                     this.model.bind("change:errorCount", this._updateErrorCount);
+                    this.model.bind("change:timeWaiting", this._updateTimeWaiting);
                 },
                 
                 _updateURL: function() {
                     this.$(".url").text(this.model.get("url"));
                     window.location.hash = this.model.get("url");
+                },
+
+                _updateTimeWaiting: function() {
+                    var waitingtext = "";
+                    var timeWaiting = Math.floor(this.model.get("timeWaiting") / 1000);
+                    if (timeWaiting && this.model.get("status") == "loading") {
+                        waitingtext = "Waiting: " + timeWaiting + "s";
+                    }
+                    this.$(".timeWaiting").text(waitingtext)
                 },
 
                 _updateStatus: function() {
@@ -308,10 +336,10 @@
                 puppet.goto(window.location.hash.slice(1) || "/");
                 
                 function watchVideos() {
-                    if(Math.random()<0.0){
+                    if (Math.random()<0.75){
                         puppet.watchVideo(watchVideos);
                     } else {
-                        puppet.watchExercise(watchVideos);
+                        puppet.doExercise(watchVideos);
                     }
                     
                 }
@@ -328,6 +356,7 @@
             <div class="url"></div>
             <div class="status"></div>
             <div class="errorcount"></div>
+            <div class="timeWaiting"></div>
         </div>
         <div style="clear: both;"></div>
         <iframe id="puppet"></iframe>
