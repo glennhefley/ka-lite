@@ -1,9 +1,11 @@
 from django.http import HttpResponseRedirect
 from django.conf.urls.defaults import patterns, include, url
+from django.contrib import admin
+
 import securesync.urls
 from kalite import settings
 
-from django.contrib import admin
+
 admin.autodiscover()
 
 urlpatterns = patterns('',
@@ -29,14 +31,22 @@ urlpatterns += patterns('',
 urlpatterns += patterns('main.views',
     url(r'^exercisedashboard/$', 'exercise_dashboard', {}, 'exercise_dashboard'),
     url(r'^coachreports/$', 'coach_reports', {}, 'coach_reports'),
+    url(r'^easyadmin/$', 'easy_admin', {}, 'easy_admin'),
+    url(r'^stats/$', 'summary_stats', {}, 'summary_stats'),
     url(r'^$', 'homepage', {}, 'homepage'),
     url(r'^update/$', 'update', {}, 'update'),
     url(r'^userlist/$', 'user_list', {}, 'user_list'),
     url(r'^api/', include('main.api_urls')),
-    url(r'^loadtesting/', include('loadtesting.urls')),
+)
+
+if settings.AUTO_LOAD_TEST:
+    urlpatterns += patterns('main.views',
+        url(r'^loadtesting/', include('loadtesting.urls')),
+    )
     
+urlpatterns += patterns('main.views',
     # the following pattern is a catch-all, so keep it last:
-    url(r'^(?P<splat>.+)/$', 'splat_handler', {}, 'splat_handler'),
+    url(r'^topics/(?P<splat>.+)/$', 'splat_handler', {}, 'splat_handler'),
 )
 
 handler404 = 'main.views.distributed_404_handler'

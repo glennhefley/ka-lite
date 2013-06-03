@@ -8,6 +8,8 @@ from django.template import RequestContext
 from django.core.urlresolvers import reverse
 from django.contrib.auth.decorators import login_required
 from django.views.decorators.csrf import csrf_exempt
+from django.contrib import messages
+from django.utils.translation import ugettext as _
 
 import settings
 from central.models import Organization, OrganizationInvitation, DeletionRecord, get_or_create_user_profile, FeedListing, Subscription
@@ -16,7 +18,6 @@ from securesync.api_client import SyncClient
 from securesync.models import Zone, SyncSession
 from securesync.models import Facility
 from securesync.forms import FacilityForm
-from django.contrib import messages
 
 
 @render_to("central/install_wizard.html")
@@ -57,6 +58,7 @@ def homepage(request):
                     org.form = form
                     
     return {
+        "title": _("Account administration"),
         "organizations": organizations,
         "invitations": OrganizationInvitation.objects.filter(email_to_invite=request.user.email)
     }

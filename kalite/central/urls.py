@@ -1,10 +1,15 @@
 from django.http import HttpResponseRedirect
 from django.conf.urls.defaults import patterns, include, url
+from django.contrib import admin
+
 import securesync.urls
 from kalite import settings
 
-from django.contrib import admin
+
 admin.autodiscover()
+
+def redirect_to(self, url, wurl=""):
+    return HttpResponseRedirect(url + wurl)
 
 urlpatterns = patterns('',
     url(r'^admin/', include(admin.site.urls)),
@@ -45,6 +50,10 @@ urlpatterns += patterns('central.views',
     url(r'^feeds/rss/$', RssSiteNewsFeed(), {}, 'rss_feed'),
     url(r'^feeds/atom/$', AtomSiteNewsFeed(), {}, 'atom_feed'),
     url(r'^faq/', include('faq.urls')),
+    url(r'^contact/', include('contact.urls')),
+    url(r'^install/$', 'install_wizard', {}, 'install_wizard'),
+    url(r'^wiki/(?P<wurl>\w+)/$', redirect_to, {'url': settings.CENTRAL_WIKI_URL}),
+    url(r'^about/$', redirect_to, { 'url': 'http://learningequality.org/' }),
 )
 
 handler404 = 'main.views.central_404_handler'
