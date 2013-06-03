@@ -167,5 +167,3 @@ def get_videos_for_topic(topic_id=None, topics=None):
     # Didn't find the topic, and no children... 
     else:
         return []
-        
->>>>>>> origin/fake_video_data
