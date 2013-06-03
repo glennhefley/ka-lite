@@ -66,11 +66,20 @@ USE_I18N       = getattr(local_settings, "USE_I18N", True)
 # calendars according to the current locale
 USE_L10N       = getattr(local_settings, "USE_L10N", False)
 
-MEDIA_ROOT     = getattr(local_settings, "MEDIA_ROOT", PROJECT_PATH + "/static/")
-MEDIA_URL      = getattr(local_settings, "MEDIA_URL", "/static/")
-STATIC_URL     = getattr(local_settings, "STATIC_URL", "/dummy/")
 
-# Make this unique, and don't share it with anybody.
+MEDIA_URL       = getattr(local_settings, "MEDIA_URL", "/media/")
+MEDIA_ROOT      = getattr(local_settings, "MEDIA_ROOT", PROJECT_PATH + "/media/") # not currently used
+STATIC_URL      = getattr(local_settings, "STATIC_URL", "/static/")
+if DEBUG: # jedi mind-trick on django to serve up static files in debug/release,
+          #   while still following the semantics of django STATIC_ROOT/STATIC_URL
+    STATIC_ROOT      = "" # this should point to a directory where we can collect and shove all files.
+                          #    since we have no intention of doing so, set it to None.
+    STATICFILES_DIRS = ( getattr(local_settings, "STATIC_ROOT", PROJECT_PATH + "/static/"), )
+else:
+    STATIC_ROOT     = getattr(local_settings, "STATIC_ROOT", PROJECT_PATH + "/static/")
+    
+ 
+ # Make this unique, and don't share it with anybody.
 SECRET_KEY     = getattr(local_settings, "SECRET_KEY", "8qq-!fa$92i=s1gjjitd&%s@4%ka9lj+=@n7a&fzjpwu%3kd#u")
 
 TEMPLATE_DIRS  = getattr(local_settings, "TEMPLATE_DIRS", (PROJECT_PATH + "/templates",))
@@ -112,6 +121,7 @@ INSTALLED_APPS = (
     "django.contrib.admin",
     "django.contrib.humanize",
     "django.contrib.messages",
+    "django.contrib.staticfiles",
     "south",
     "chronograph",
     "django_cherrypy_wsgiserver",
