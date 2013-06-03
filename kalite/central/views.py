@@ -1,22 +1,31 @@
 import re, json
+import requests
+from annoying.decorators import render_to
+
 from django.http import HttpResponse, HttpResponseNotFound, HttpResponseRedirect, HttpResponseNotAllowed
 from django.shortcuts import render_to_response, get_object_or_404, redirect, get_list_or_404
 from django.template import RequestContext
-from annoying.decorators import render_to
+from django.core.urlresolvers import reverse
+from django.contrib.auth.decorators import login_required
+from django.views.decorators.csrf import csrf_exempt
+
+import settings
 from central.models import Organization, OrganizationInvitation, DeletionRecord, get_or_create_user_profile, FeedListing, Subscription
 from central.forms import OrganizationForm, ZoneForm, OrganizationInvitationForm
 from securesync.api_client import SyncClient
 from securesync.models import Zone, SyncSession
-from django.core.urlresolvers import reverse
-from django.contrib.auth.decorators import login_required
-from django.views.decorators.csrf import csrf_exempt
 from securesync.models import Facility
 from securesync.forms import FacilityForm
 from django.contrib import messages
 
-import requests
-import settings
 
+@render_to("central/install_wizard.html")
+def install_wizard(request):
+    return {
+        "central_contact_email": settings.CENTRAL_CONTACT_EMAIL,
+        "wiki_url": settings.CENTRAL_WIKI_URL
+        }
+    
 @render_to("central/homepage.html")
 def homepage(request):
     
