@@ -13,10 +13,13 @@ TEMPLATE_DEBUG = getattr(local_settings, "TEMPLATE_DEBUG", DEBUG)
 
 # Set logging level based on the value of DEBUG (evaluates to 0 if False, 1 if True)
 logging.getLogger().setLevel(logging.DEBUG*DEBUG + logging.INFO*(1-DEBUG))
-    
+
 INTERNAL_IPS   = getattr(local_settings, "INTERNAL_IPS", ("127.0.0.1",))
 
 CENTRAL_SERVER = getattr(local_settings, "CENTRAL_SERVER", False)
+
+AUTO_LOAD_TEST = getattr(local_settings, "AUTO_LOAD_TEST", False)
+assert not AUTO_LOAD_TEST or (DEBUG and CENTRAL_SERVER), "AUTO_LOAD_TEST only on local server, when debugging"
 
 # info about the central server(s)
 SECURESYNC_PROTOCOL   = getattr(local_settings, "SECURESYNC_PROTOCOL",   "https")
@@ -135,12 +138,12 @@ INSTALLED_APPS = (
     "config",
     "main",
     "faq",
-    "loadtesting",
-    "contact",
 )
 
 if DEBUG or CENTRAL_SERVER:
     INSTALLED_APPS += ("django_extensions","django_snippets")
+if AUTO_LOAD_TEST:
+    INSTALLED_APPS += ("loadtesting",)
 
 
 if CENTRAL_SERVER:
@@ -150,7 +153,7 @@ if CENTRAL_SERVER:
     EMAIL_BACKEND           = getattr(local_settings, "EMAIL_BACKEND", "postmark.backends.PostmarkBackend")
     AUTH_PROFILE_MODULE     = 'central.UserProfile'
 
-if not CENTRAL_SERVER:
+else:
     MIDDLEWARE_CLASSES += (
         "securesync.middleware.DBCheck",
         "securesync.middleware.AuthFlags",

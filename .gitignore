@@ -1,5 +1,3 @@
-*migrations*
-*.prof
 *.pyc
 *.sublime-*
 notes.txt
@@ -25,3 +23,8 @@ content/*.png
 content/*.mp4
 content/*.json
 content/*.srt
+*migrations*
+*.prof
+kalite-*.zip
+tmp/
+
