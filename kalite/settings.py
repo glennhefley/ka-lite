@@ -154,7 +154,6 @@ if not CENTRAL_SERVER:
         "main.custom_context_processors.languages",
     )
 
-
 CACHE_TIME=getattr(local_settings, "CACHE_TIME", int(60*60*24*365*1000)) # by default, cache for 1000 years
 
 # Cache is activated in every case, 
@@ -173,12 +172,6 @@ if CACHE_TIME:
 
 
 SESSION_ENGINE = getattr("local_settings", "SESSION_ENGINE", 'django.contrib.sessions.backends.cache')
-
-syncing_models = []
-def add_syncing_models(models):
-    for model in models:
-        if model not in syncing_models:
-            syncing_models.append(model)
 
 slug_key = {
     "Topic": "id",

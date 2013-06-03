@@ -1,11 +1,19 @@
-from models import *
+import re
+import json
+import requests
+import urllib
+import urllib2
+import uuid
 
-import re, json, requests, urllib, urllib2, uuid
 from django.core import serializers
 
 import crypto
 import settings
 import kalite
+import model_sync
+from models import *
+
+#_json_serializer = serializers.get_serializer("json")()
 
 class SyncClient(object):
     """ This is for the distributed server, for establishing a client session with
@@ -52,10 +60,10 @@ class SyncClient(object):
     def register(self):
         own_device = Device.get_own_device()
         r = self.post("register", {
-            "client_device": json_serializer.serialize([own_device], ensure_ascii=False)
+            "client_device": serializers.serialize("json", [own_device], client_version=None, ensure_ascii=False)
         })
         if r.status_code == 200:
-            models = serializers.deserialize("json", r.content)
+            models = serializers.deserialize("json", r.content, client_version=None, server_version=own_device.version)
             for model in models:
                 if not model.object.verify():
                     continue
@@ -79,11 +87,22 @@ class SyncClient(object):
             "client_version": kalite.VERSION,
             "client_os": kalite.OS,
         })
-        data = json.loads(r.content)
+        
+        # Happens if the server has an error
+        raw_data = r.content
+        try:
+            data = json.loads(raw_data)
+        except ValueError as e:
+            z = re.search(r'exception_value">([^<]+)<', str(raw_data), re.MULTILINE)
+            if z:
+                raise Exception("Could not load JSON\n; server error=%s" % z.group(1))
+            else:
+                raise Exception("Could not load JSON\n; raw content=%s" % raw_data)
+            
         if data.get("error", ""):
             raise Exception(data.get("error", ""))
         signature = data.get("signature", "")
-        session = serializers.deserialize("json", data["session"]).next().object
+        session = serializers.deserialize("json", data["session"], server_version=kalite.VERSION).next().object
         if not session.verify_server_signature(signature):
             raise Exception("Signature did not match.")
         if session.client_nonce != self.session.client_nonce:
@@ -126,7 +145,7 @@ class SyncClient(object):
         return json.loads(r.content or "{}").get("device_counters", {})
         
     def get_client_device_counters(self):
-        return get_device_counters(self.session.client_device.get_zone())
+        return Device.get_device_counters(self.session.client_device.get_zone())
 
     def sync_device_records(self):
         
@@ -154,27 +173,48 @@ class SyncClient(object):
                 self.counters_to_download[device] = client_counters[device]
                 
         response = json.loads(self.post("device/download", {"devices": devices_to_download}).content)
-        download_results = save_serialized_models(response.get("devices", "[]"), increment_counters=False)
+        download_results = model_sync.save_serialized_models(response.get("devices", "[]"), increment_counters=False)
         
         self.session.models_downloaded += download_results["saved_model_count"]
-        
+        self.session.errors += download_results.has_key("error")
+
         # TODO(jamalex): upload local devices as well? only needed once we have P2P syncing
         
     def sync_models(self):
-
+        
         if self.counters_to_download is None or self.counters_to_upload is None:
             self.sync_device_records()
 
-        response = json.loads(self.post("models/download", {"device_counters": self.counters_to_download}).content)
-        download_results = save_serialized_models(response.get("models", "[]"))
-        
-        self.session.models_downloaded += download_results["saved_model_count"]
-        
-        response = self.post("models/upload", {"models": get_serialized_models(self.counters_to_upload)})
-        upload_results = json.loads(response.content)
-        
-        self.session.models_uploaded += upload_results["saved_model_count"]
-        
+        # Download (but prepare for errors--both thrown and unthrown!)
+        download_results = {
+            "saved_model_count" : 0,
+            "unsaved_model_count" : 0,
+        }
+        try:
+            response = json.loads(self.post("models/download", {"device_counters": self.counters_to_download}).content)
+            download_results = model_sync.save_serialized_models(response.get("models", "[]"))
+            self.session.models_downloaded += download_results["saved_model_count"]
+            self.session.errors += download_results.has_key("error")
+            self.session.errors += download_results.has_key("exceptions")
+        except Exception as e:
+            download_results["error"] = e
+            self.session.errors += 1
+
+        # Upload (but prepare for errors--both thrown and unthrown!)
+        upload_results = {
+            "saved_model_count" : 0,
+            "unsaved_model_count" : 0,
+        }
+        try:
+            response = self.post("models/upload", {"models": model_sync.get_serialized_models(self.counters_to_upload, client_version=self.session.client_version)})
+            upload_results = json.loads(response.content)
+            self.session.models_uploaded += upload_results["saved_model_count"]
+            self.session.errors += upload_results.has_key("error")
+            self.session.errors += upload_results.has_key("exceptions")
+        except Exception as e:
+            upload_results["error"] = e
+            self.session.errors += 1
+                
         self.counters_to_download = None
         self.counters_to_upload = None
         
