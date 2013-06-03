@@ -25,8 +25,8 @@ from securesync.models import Facility, FacilityUser,FacilityGroup
 from models import VideoLog, ExerciseLog, VideoFile
 from config.models import Settings
 from securesync.api_client import SyncClient
+from utils import topic_tools
 from utils.jobs import force_job
-
 
 def splat_handler(request, splat):
     slugs = filter(lambda x: x, splat.split("/"))
@@ -93,14 +93,19 @@ def check_setup_status(handler):
 @cache_page(settings.CACHE_TIME)
 @render_to("topic.html")
 def topic_handler(request, topic):
-    videos = filter(lambda node: node["kind"] == "Video", topic["children"])
-    exercises = filter(lambda node: node["kind"] == "Exercise" and node["live"], topic["children"])
-    topics = filter(lambda node: node["kind"] == "Topic" and not node["hide"] and "Video" in node["contains"], topic["children"])
-    
-    my_topics = []
-    for t in topics:
-        my_topics.append({ 'title': t['title'], 'path': t['path'] })
-        
+    videos    = topicdata.get_videos(topic)
+    exercises = topicdata.get_exercises(topic)
+    topics    = topicdata.get_live_topics(topic)
+
+    # Get video counts if they'll be used,
+    #   on-demand only.
+    #
+    # Check in this order so that the initial counts are always updated
+    if topic_tools.video_counts_need_update() or not 'nvideos_local' in topic:
+        (topic,_,_) = topic_tools.get_video_counts(topic=topic, videos_path=settings.CONTENT_ROOT) 
+            
+    my_topics = [dict((k, t[k]) for k in ('title', 'path', 'nvideos_local', 'nvideos_known')) for t in topics]
+
     context = {
         "topic": topic,
         "title": topic[title_key["Topic"]],
@@ -115,7 +120,20 @@ def topic_handler(request, topic):
 @cache_page(settings.CACHE_TIME)
 @render_to("video.html")
 def video_handler(request, video, prev=None, next=None):
-    if not VideoFile.objects.filter(pk=video['youtube_id']).exists():
+    video_exists = VideoFile.objects.filter(pk=video['youtube_id']).exists()
+    
+    # If the video REALLY exists, but it's not in the DB, then trigger the update call
+    #   It should not take long for the db to be updated (assuming that crontab is running
+    #   in the background), so just let them start watching the video and assume
+    #   progress will be recorded.
+    #
+    #  The small probability that progress will not be reported
+    #    is better than not offering the video to the student at all.
+    if not video_exists and topic_tools.is_video_on_disk(video['youtube_id']):
+        force_job("videoscan")
+        video_exists = True # 
+        
+    if not video_exists:
         if request.is_admin:
             messages.warning(request, _("This video was not found! You can download it by going to the Update page."))
         elif request.is_logged_in:
@@ -129,6 +147,7 @@ def video_handler(request, video, prev=None, next=None):
     context = {
         "video": video,
         "title": video[title_key["Video"]],
+        "video_exists": video_exists,#VideoFile.objects.filter(pk=video['youtube_id']).exists(),
         "prev": prev,
         "next": next,
     }
@@ -168,10 +187,9 @@ def exercise_dashboard(request):
 @render_to("homepage.html")
 def homepage(request):
     topics = filter(lambda node: node["kind"] == "Topic" and not node["hide"], topicdata.TOPICS["children"])
-    
-    my_topics = []
-    for t in topics:
-        my_topics.append({ 'title': t['title'], 'path': t['path'] })
+
+    # indexed by integer
+    my_topics = [dict([(k, t[k]) for k in ('title', 'path')]) for t in topics]
 
     context = {
         "title": "Home",
