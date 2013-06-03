@@ -1,6 +1,8 @@
 import glob, os
 import logging
+
 from main import topicdata
+
 
 def find_videos_by_youtube_id(youtube_id, node=topicdata.TOPICS):
     videos = []
@@ -133,3 +135,37 @@ db_name: name of database to connect to (Old method)
     topic['nvideos_local'] = nvideos_local
     topic['nvideos_known'] = nvideos_known
     return (topic, nvideos_local, nvideos_known)
+
+    
+def get_videos_for_topic(topic_id=None, topics=None):
+    """Gets all video nodes under the topic ID.  
+    If topid ID is None, returns all videos under the topics node. """
+    
+    if topics is None:
+        topics = topicdata.TOPICS
+
+
+    # Found the topic!
+    if topics.get("id",None) and (topics.get("id")==topic_id or topic_id is None):
+        videos = filter(lambda node: node["kind"] == "Video", topics["children"])
+
+        # Recursive case: traverse children
+        if topics.get("children",None):
+            for topic in topics.get("children",[]):
+                videos += get_videos_for_topic(topics=topic)
+
+        return videos
+        
+    # Didn't find the topic, but it has children to check...
+    elif topics.get("children",None):
+        videos = []
+        for topic in topics.get("children"):
+            videos += get_videos_for_topic(topic_id, topic)
+                
+        return videos   
+    
+    # Didn't find the topic, and no children... 
+    else:
+        return []
+        
+>>>>>>> origin/fake_video_data
