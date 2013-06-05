@@ -2,13 +2,14 @@ import re, json
 import requests
 from annoying.decorators import render_to
 
-from django.http import HttpResponse, HttpResponseNotFound, HttpResponseRedirect, HttpResponseNotAllowed
+from django.http import HttpResponse, HttpResponseNotFound, HttpResponseRedirect, HttpResponseNotAllowed, HttpResponseServerError
 from django.shortcuts import render_to_response, get_object_or_404, redirect, get_list_or_404
 from django.template import RequestContext
 from django.core.urlresolvers import reverse
 from django.contrib.auth.decorators import login_required
 from django.views.decorators.csrf import csrf_exempt
 from django.contrib import messages
+from django.template.loader import render_to_string
 from django.utils.translation import ugettext as _
 
 import settings
@@ -239,4 +240,10 @@ def crypto_login(request):
         return HttpResponse("Unable to establish a session with KA Lite server at %s" % host)
     return HttpResponseRedirect("%ssecuresync/cryptologin/?client_nonce=%s" % (host, client.session.client_nonce))
 
+
+
+def central_404_handler(request):
+    return HttpResponseNotFound(render_to_string("404_central.html", {}, context_instance=RequestContext(request)))
     
+def central_500_handler(request):
+    return HttpResponseServerError(render_to_string("500_central.html", {}, context_instance=RequestContext(request)))
