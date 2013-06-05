@@ -321,8 +321,9 @@ class FacilityUser(SyncedModel):
                  
         if hashed_password:
             self.password = hashed_password
-        else:       
-            self.password = crypt(raw_password, iterations=Settings.get("password_hash_iterations", 2000))
+        else:
+            default_iterations = 2000 if self.is_teacher else 1000
+            self.password = crypt(raw_password, iterations=Settings.get("password_hash_iterations", default_iterations))
 
     def get_name(self):
         if self.first_name and self.last_name:

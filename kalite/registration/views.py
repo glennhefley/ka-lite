@@ -3,22 +3,24 @@ Views which allow users to create and activate accounts.
 
 """
 
-from central.forms import OrganizationForm
-from central.models import Organization
-from securesync.models import Zone
+import copy
 
 from django.shortcuts import redirect
 from django.shortcuts import render_to_response
 from django.template import RequestContext
 from django.contrib import messages
 from django.contrib.auth import logout
-
-from django.db import IntegrityError
+from django.contrib.auth import views as auth_views
+from django.db import IntegrityError, transaction
+from django.http import HttpResponse
 from django.utils.translation import ugettext as _
 
+from central.forms import OrganizationForm
+from central.models import Organization
+from securesync.models import Zone
 from registration.backends import get_backend
-from django.http import HttpResponse
 from utils.mailchimp import mailchimp_subscribe
+
 
 
 def complete(request, *args, **kwargs):
@@ -107,6 +109,7 @@ def activate(request, backend,
                               context_instance=context)
 
 
+@transaction.commit_on_success
 def register(request, backend, success_url=None, form_class=None,
              disallowed_url='registration_disallowed',
              template_name='registration/registration_form.html',
@@ -200,16 +203,8 @@ def register(request, backend, success_url=None, form_class=None,
         form = form_class(data=request.POST, files=request.FILES)
         org_form = OrganizationForm(data=request.POST, instance=Organization())
         
-        # Could register
-#        if form.is_valid() and not org_form.is_valid() and org_form.errors.has_key('name'):
-#            org_form.data = org_form.data.copy()
-#            org_form['name'] = "%s %s's Personal Installation" % (form.cleaned_data['first_name'], form.cleaned_data['last_name'])
-            
         if form.is_valid() and org_form.is_valid():
-            form.cleaned_data['username'] = form.cleaned_data['email']
-
-            # TODO (bcipolli): should do all this in one transaction,
-            #   so that if any one part fails, it all rolls back.
+            assert form.cleaned_data['username'] == form.cleaned_data['email'], "username should be set to email inside the form.clean() call"
 
             try:
                 # Create the user
@@ -259,6 +254,32 @@ def register(request, backend, success_url=None, form_class=None,
                               { 'form': form, "org_form" : org_form},
                               context_instance=context)
 
+def login_view(request, *args, **kwargs):
+    """Force lowercase of the username.
+    
+    Since we don't want things to change to the user (if something fails),
+    we should try the new way first, then fall back to the old way"""
+
+    # Try the the lcased way
+    old_POST = request.POST
+    request.POST = copy.deepcopy(request.POST)
+    if "username" in request.POST:
+        request.POST['username'] = request.POST['username'].lower()
+    template_response = auth_views.login(request, *args, **kwargs)
+
+    # Try the original way    
+    # If we have a login error, try logging in with lcased version
+    template_data = getattr(template_response, 'context_data', {})
+    template_form = template_data.get('form', {})
+    template_errors = getattr(template_form, 'errors', {})
+    if template_errors:
+        request.POST = old_POST
+        template_response = auth_views.login(request, *args, **kwargs)
+
+    # Return the logged in version, or failed to login using lcased version
+    return template_response    
+
+    
 def logout_view(request):
     logout(request)
     return redirect("homepage")
