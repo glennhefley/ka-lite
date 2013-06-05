@@ -171,10 +171,6 @@ def scrub_topics(topic_node):
     global kind_blacklist
     
     if topic_node["kind"] in kind_blacklist:
-#        if topic_node["kind"] == "Separator":
-#            print topic_node
-#        else:
-#            import pdb; pdb.set_trace()
         return None
     elif topic_node["slug"] in slug_blacklist:
         return None

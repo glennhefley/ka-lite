@@ -9,7 +9,6 @@ To run, simply use the command:
 import urllib2	
 from urllib2 import Request, urlopen, URLError, HTTPError
 import json 
-import pdb
 import dubbed_video_spreadsheet_extract
 import csv 
 import codecs 
