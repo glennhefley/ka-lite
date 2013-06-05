@@ -182,15 +182,3 @@ if CACHE_TIME:
 
 
 SESSION_ENGINE = getattr("local_settings", "SESSION_ENGINE", 'django.contrib.sessions.backends.cache')
-
-slug_key = {
-    "Topic": "id",
-    "Video": "readable_id",
-    "Exercise": "name",
-}
-
-title_key = {
-    "Topic": "title",
-    "Video": "title",
-    "Exercise": "display_name",
-}

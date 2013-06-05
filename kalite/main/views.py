@@ -17,7 +17,7 @@ from django.views.decorators.cache import cache_control
 from django.views.decorators.cache import cache_page
 
 import settings
-from settings import slug_key, title_key
+from utils.topics import slug_key, title_key
 from main import topicdata
 from securesync.views import require_admin, facility_required
 from config.models import Settings
