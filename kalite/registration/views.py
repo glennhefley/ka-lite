@@ -239,7 +239,6 @@ def register(request, backend, success_url=None, form_class=None,
                 else:
                     raise e
 
-    # Request method was GET        
     else:
         form = form_class()
         org_form = OrganizationForm()
