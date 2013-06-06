@@ -24,7 +24,7 @@ import settings
 from central.models import Organization, OrganizationInvitation, DeletionRecord, get_or_create_user_profile, FeedListing, Subscription
 from central.forms import OrganizationForm, ZoneForm, OrganizationInvitationForm
 from securesync.api_client import SyncClient
-from securesync.models import Zone, SyncSession
+from securesync.models import Zone, SyncSession, ZoneInstallCertificate
 from securesync.models import Facility
 from securesync.forms import FacilityForm
 from utils.django_utils import call_command_with_output
