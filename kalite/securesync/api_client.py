@@ -1,3 +1,4 @@
+import logging
 import re
 import json
 import requests
@@ -13,11 +14,13 @@ import kalite
 import model_sync
 from models import *
 
-#_json_serializer = serializers.get_serializer("json")()
 
 class SyncClient(object):
     """ This is for the distributed server, for establishing a client session with
-    the central server.  Over that session, syncing can occur in multiple requests"""
+    the central server.  Over that session, syncing can occur in multiple requests.
+    
+    Note that in the future, this object may be used to sync 
+    between two distributed servers (i.e. peer-to-peer sync)!"""
      
     session = None
     counters_to_download = None
@@ -56,24 +59,60 @@ class SyncClient(object):
             return "connection_error"
         except Exception as e:
             return "error (%s)" % e
+    
+    def get_my_outside_IP(self):
+        if self.test_connection() != "success":
+            return None
+        else:
+            return self.get("IPtest", timeout=5)
+            
             
     def register(self):
+        """Register this device with a zone."""
+        
+        # Get the required model data by registering (online and offline options available)
+        try:
+            models = self.register_online(certs=certs)
+        except Exception as e:
+            # Some of our exceptions are actually json blobs from the server.
+            #   Try loading them to pass on that error info.
+            try:
+                return json.loads(e.message)
+            except:
+                return { "err", e.message }
+        
+        # If we got here, we've successfully registered, and 
+        #   have the model data necessary for completing registration!
+        for model in models:
+            if not model.object.verify():
+                logging.info("Failed to verify model!")
+                
+            # save the imported model, and mark the returned Device as trusted
+            if isinstance(model.object, Device):
+                model.object.save(is_trusted=True, imported=True)
+            else:
+                model.object.save(imported=True)
+        
+        # If that all completes successfully, then we've registered!  Woot!
+        return {"code": "registered"}
+
+
+    def register_online(self):
+        """Register this device with a zone, through the central server directly"""
+        
         own_device = Device.get_own_device()
+
         r = self.post("register", {
-            "client_device": serializers.serialize("json", [own_device], client_version=None, ensure_ascii=False)
+            "client_device": serializers.serialize("json", [own_device], ensure_ascii=False),
         })
-        if r.status_code == 200:
-            models = serializers.deserialize("json", r.content, client_version=None, server_version=own_device.version)
-            for model in models:
-                if not model.object.verify():
-                    continue
-                # save the imported model, and mark the returned Device as trusted
-                if isinstance(model.object, Device):
-                    model.object.save(is_trusted=True, imported=True)
-                else:
-                    model.object.save(imported=True)
-            return {"code": "registered"}
-        return json.loads(r.content)
+
+        # Failed to register with any certificate
+        if r.status_code != 200:
+            raise Exception(r.content)
+
+        # When we register, we should receive the model information we require.
+        return serializers.deserialize("json", r.content)
+        
     
     def start_session(self):
         if self.session:

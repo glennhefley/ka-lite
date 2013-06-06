@@ -1,18 +1,28 @@
+import crypto
 import datetime
+import logging
+import random
 import uuid
+import zlib
+from annoying.functions import get_object_or_None
 from pbkdf2 import crypt
 
-from django.contrib.auth.models import check_password
+from django.contrib.auth.models import User, check_password
+from django.core import serializers
 from django.core.exceptions import ValidationError, ObjectDoesNotExist
 from django.db import models, transaction
 from django.db.models import Q
+from django.utils.text import compress_string
+from django.db.models import Max
 from django.utils.translation import ugettext_lazy as _
 
-from config.models import Settings
+import kalite
+import settings
 import crypto
 import model_sync
-import settings
-import kalite
+from config.utils import set_as_registered
+from config.models import Settings
+
 
 # Note: this MUST be hard-coded for backwards-compatibility reasons.
 ROOT_UUID_NAMESPACE = uuid.uuid5(uuid.NAMESPACE_URL, "https://kalite.adhocsync.com/")
@@ -245,9 +255,171 @@ class Zone(SyncedModel):
 
     requires_trusted_signature = True
     
+    def generate_install_certificates(self, num_certificates=5):
+        
+        certs = []
+        if settings.CENTRAL_SERVER:
+            for i in range(num_certificates):
+                cert = self.zoneinstallcertificate_set.create()
+                certs.append(cert)
+                logging.debug("Created install certificate: Zone=%s; Cert=%s" % (self.name, cert.raw_value))
+        return certs            
+        
+    @transaction.commit_on_success
+    def register_offline(self, device, signed_values=None):
+        """Registers in an offline context by verifying the given certificates
+        with the zone's public key"""
+        
+        if device.is_registered():
+            raise Exception("Device is already registered!")
+        
+        if signed_values:
+            if hasattr(user_certificates,"pop"):
+                user_certificates = [ZoneInstallCertificate.objects.get(signed_value=sv) for sv in signed_values]
+            else:
+                user_certificates = [ZoneInstallCertificate.objects.get(signed_value=signed_values)]
+        else:
+            user_certificates = ZoneInstallCertificate.objects.filter(zone=self.id)
+
+        for cert in user_certificates:
+            if cert.verify():
+                # Things we have to do, in order to register
+                dz = DeviceZone(device=device, zone=self)
+                dz.save()
+                set_as_registered()
+
+                # Things we'd like to do, in order to facilitate user registrations:
+                #    Create a default facility.
+                if len(Facility.objects.all())==0:
+                    facility = Facility(name="default facility")
+                    facility.save()
+
+                return cert.raw_value
+        return None
+    
+       
     def __unicode__(self):
         return self.name
+
+
+class ZoneKey(SyncedModel):
+    """Zones should have keys, but for back compat, they can't.
+    So, let's define a one-to-one table, to store zone keys.
+    
+    ZoneKey gets created on the fly, whenever something happens
+    that requires one.  Note that right now, that is when
+    a ZoneInstallCertificate is requested."""
+    
+    zone = models.ForeignKey(Zone, verbose_name="Zone", unique=True)
+    private_key = models.TextField(max_length=500, blank=True) # distributed server
+    public_key = models.TextField(max_length=500)
+    
+    key = None
+    
+    def save(self, *args, **kwargs):
+        # This happens on the local server side
+        if self.public_key:
+            assert self.private_key or not settings.CENTRAL_SERVER, "public_key should only be set alone in distributed servers."
+            
+        # Auto-generate keys, if necessary
+        elif not self.private_key:
+            key = crypto.Key()
+            self.private_key = key.get_private_key_string()
+            self.public_key  = key.get_public_key_string()
+            
+        else:# self.public_key:
+            self.public_key = self.get_key().get_public_key_string()
         
+        super(ZoneKey, self).save(*args, **kwargs)
+        
+        
+    def get_key(self):
+
+        # We have a cryptographic key object (from previous run); return it
+        if self.key:
+            return self.key
+
+        # We have key strings, but no key object.  create one!
+        elif self.private_key:
+            # For back-compatibility, where zones didn't have keys
+            if self.private_key=="dummy_key":
+                self.private_key = None
+                self.public_key = None
+                self.save()
+                
+            self.key = crypto.Key(private_key_string = self.private_key, public_key_string = self.public_key)
+            return self.key
+
+        elif self.public_key:
+            self.key = crypto.Key(public_key_string = self.public_key)
+            return self.key
+            
+        else:  
+            # Cannot create a key here; otherwise we run the risk
+            #   of changing the key (if it's generated here and not saved)
+            raise Exception('No key set for this object.')
+
+        
+class ZoneInstallCertificate(models.Model):
+    """Install certificates are used to validate the addition of a 
+    device to a zone during an offline install, with some guarantee
+    that if the device ever comes online, the central server will approve the addition.
+    """
+    
+    zone = models.ForeignKey(Zone, verbose_name="Zone Certificate")
+    raw_value = models.CharField(max_length=50, blank=False)
+    signed_value = models.CharField(max_length=500, blank=False)
+    expiration_date = models.DateTimeField()
+    
+    
+    @transaction.commit_on_success
+    def save(self, *args, **kwargs):
+
+        # Generate the certificate
+        if not self.raw_value:
+            self.raw_value = "%f" % random.random()
+            self.signed_value = ""
+        
+        if not self.signed_value:
+            self.signed_value = self.get_key().sign(self.raw_value)
+        
+        # Make sure we don't get duplicate certificates
+        cert_ids = set([cert.id for cert in ZoneInstallCertificate.objects.filter(zone=self.id,  raw_value=self.raw_value)]).union(set((self.id,)))
+        if len(cert_ids) != 1:
+            raise Exception("Cannot double-add install certificates.")
+        
+        # Expire in one year, if not specified
+        #   Note: no "years" nor "month" keywords, so set in days
+        if not self.expiration_date:
+            self.expiration_date = datetime.datetime.now() + datetime.timedelta(days=365) 
+            
+        super(ZoneInstallCertificate, self).save(*args, **kwargs)
+
+
+    def get_key(self):
+        if not getattr(self, "zonekey", None):
+            try:
+                self.zonekey = ZoneKey.objects.get(zone=self.zone)
+            except ZoneKey.DoesNotExist:
+                # generate the zone key
+                self.zonekey = ZoneKey(zone=self.zone)
+                self.zonekey.save()
+                self.zonekey.full_clean()
+        return self.zonekey.get_key()
+    
+    
+    def verify(self):
+        """Check that the given certificate is recognized, but don't actually use it."""
+        
+        return self.get_key().verify(self.raw_value, self.signed_value)
+            
+                
+    def use(self):
+        """Use the given install certificate: validate it, and remove it from the database.
+        If the certificate was invalid/unrecognized, then the method with raise an Exception"""
+        
+        self.delete()
+
 
 class Facility(SyncedModel):
     name = models.CharField(verbose_name=_("Name"), help_text=_("(This is the name that students/teachers will see when choosing their facility; it can be in the local language.)"), max_length=100)
@@ -383,6 +555,9 @@ class Device(SyncedModel):
         fields = ["signed_version", "name", "description", "public_key"]
         return super(Device, self)._hashable_representation(fields=fields)
 
+    def is_registered(self):
+        return self.get_zone() is not None
+        
     def get_metadata(self):        
         try:
             return self.devicemetadata
@@ -424,8 +599,10 @@ class Device(SyncedModel):
 
     @transaction.commit_on_success
     def increment_and_get_counter(self):
+        """Device sets own counter (in metadata), and returns it (for update)"""
+        
         metadata = self.get_metadata()
-        if not metadata.device.id:
+        if not metadata.device.id: 
             return 0
         metadata.counter_position += 1
         metadata.save()

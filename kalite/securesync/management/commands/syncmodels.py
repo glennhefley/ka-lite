@@ -71,14 +71,17 @@ class Command(BaseCommand):
                 if upload_results.has_key("exceptions"):
                     self.stderr_writeln("%s: %s"%(("Upload exceptions"),upload_results["exceptions"][:200]))
 
+            # Keep track of failures
+            failure_tries += (fail_count > 0 and success_count == 0)
+
             # stop when nothing is being transferred anymore
             if success_count == 0 and (fail_count == 0 or failure_tries >= max_retries):
                 break
-            failure_tries += (fail_count > 0 and success_count == 0)
-            
-        # Report summaries
+
+        # Summarize, after everything is finished.
         self.stdout_writeln("%s... (%s: %d, %s: %d, %s: %d)" % 
             (("Closing session"), ("Total uploaded"), client.session.models_uploaded, ("Total downloaded"), client.session.models_downloaded, ("Total errors"), client.session.errors))
+
 
         # Report any exceptions
         if client.session.errors:
@@ -86,6 +89,7 @@ class Command(BaseCommand):
         if failure_tries >= max_retries:
             self.stderr_writeln("%s (%d)."%("Failed to upload all models (stopped after failed attempts)",failure_tries))
             
+        # Retry purgatory one last time
         self.stdout_writeln(("Checking purgatory once more, to try saving any unsaved models")+"...")
         call_command("retrypurgatory")
         

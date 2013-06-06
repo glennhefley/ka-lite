@@ -13,6 +13,7 @@ DEBUG          = getattr(local_settings, "DEBUG", False)
 TEMPLATE_DEBUG = getattr(local_settings, "TEMPLATE_DEBUG", DEBUG)
 
 # Set logging level based on the value of DEBUG (evaluates to 0 if False, 1 if True)
+logging.basicConfig()
 logging.getLogger().setLevel(logging.DEBUG*DEBUG + logging.INFO*(1-DEBUG))
 
 INTERNAL_IPS   = getattr(local_settings, "INTERNAL_IPS", ("127.0.0.1",))
@@ -132,19 +133,19 @@ INSTALLED_APPS = (
     "securesync",
     "config",
     "main",
-    "faq",
+    "kalite",
 )
 
 if DEBUG or CENTRAL_SERVER:
     INSTALLED_APPS += ("django_extensions","django_snippets")
+
 if AUTO_LOAD_TEST:
     INSTALLED_APPS += ("loadtesting",)
-
 
 if CENTRAL_SERVER:
     ACCOUNT_ACTIVATION_DAYS = getattr(local_settings, "ACCOUNT_ACTIVATION_DAYS", 7)
     DEFAULT_FROM_EMAIL      = getattr(local_settings, "DEFAULT_FROM_EMAIL", CENTRAL_FROM_EMAIL)
-    INSTALLED_APPS         += ("postmark", "kalite.registration", "central")
+    INSTALLED_APPS         += ("postmark", "kalite.registration", "central", "faq", "contact",)
     EMAIL_BACKEND           = getattr(local_settings, "EMAIL_BACKEND", "postmark.backends.PostmarkBackend")
     AUTH_PROFILE_MODULE     = 'central.UserProfile'
 
@@ -158,6 +159,8 @@ else:
     TEMPLATE_CONTEXT_PROCESSORS += (
         "main.custom_context_processors.languages",
     )
+    INSTALL_CERTIFICATES = getattr(local_settings, "INSTALL_CERTIFICATES", [])
+
 
 # by default, cache for maximum possible
 #   note: caching for 1000 years was too large a value,

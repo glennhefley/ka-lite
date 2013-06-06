@@ -47,7 +47,6 @@ if settings.AUTO_LOAD_TEST:
         url(r'^loadtesting/', include('loadtesting.urls')),
     )
     
-urlpatterns += patterns('main.views',
     # the following pattern is a catch-all, so keep it last:
     url(r'^topics/(?P<splat>.+)/$', 'splat_handler', {}, 'splat_handler'),
 )

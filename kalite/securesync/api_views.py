@@ -1,22 +1,24 @@
 import re
 import json
 import uuid
+import logging; 
 
+from django.db import transaction
 from django.http import HttpResponse
 from django.utils import simplejson
 from django.core import serializers
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.gzip import gzip_page
 
+import kalite
 import crypto
 import settings
-import version
 import model_sync
+from models import *
 from main.models import VideoLog, ExerciseLog
 from config.models import Settings
-from models import * # includes model_sync
+from main.models import VideoLog, ExerciseLog
 
-#_json_serializer = serializers.get_serializer("json")()
 
 class JsonResponse(HttpResponse):
     def __init__(self, content, *args, **kwargs):
@@ -47,19 +49,24 @@ def require_sync_session(handler):
 
 @csrf_exempt
 def register_device(request):
-    data = simplejson.loads(request.raw_post_data or "{}")
+    """Receives the client device info from the distributed server.
+    Tries to register either because the device has been pre-registered,
+    or because it has a valid INSTALL_CERTIFICATE."""
     
     # attempt to load the client device data from the request data
+    data = simplejson.loads(request.raw_post_data or "{}")
     if "client_device" not in data:
         return JsonResponse({"error": "Serialized client device must be provided."}, status=500)
     try:
-        models = serializers.deserialize("json", data["client_device"], client_version=None, server_version=version.VERSION)
+        models = serializers.deserialize("json", data["client_device"], client_version=None, server_version=kalite.VERSION)
         client_device = models.next().object
     except Exception as e:
         return JsonResponse({
             "error": "Could not decode the client device model: %r" % e,
             "code": "client_device_corrupted",
         }, status=500)
+
+    # Validate the loaded data
     if not isinstance(client_device, Device):
         return JsonResponse({
             "error": "Client device must be an instance of the 'Device' model.",
@@ -70,10 +77,12 @@ def register_device(request):
             "error": "Client device must be self-signed with a signature matching its own public key.",
             "code": "client_device_invalid_signature",
         }, status=500)
-        
-    # we have a valid self-signed Device, so now check if its public key has been registered
+    
+    # Check if its public key has been registered
     try:
         registration = RegisteredDevicePublicKey.objects.get(public_key=client_device.public_key)
+        zone = registration.zone
+        registration.delete()
     except RegisteredDevicePublicKey.DoesNotExist:
         try:
             device = Device.objects.get(public_key=client_device.public_key)
@@ -86,19 +95,13 @@ def register_device(request):
                 "error": "Device registration with public key not found; login and register first?",
                 "code": "public_key_unregistered",
             }, status=500)
-    
-    client_device.signed_by = client_device
-    
-    # the device checks out; let's save it!
+
+    client_device.signed_by = client_device  # the device checks out; let's save it!
     client_device.save(imported=True)
-    
-    # create the DeviceZone for the new device
+
     device_zone = DeviceZone(device=client_device, zone=registration.zone)
-    device_zone.save()
-    
-    # delete the RegisteredDevicePublicKey, now that we've initialized the device and put it in its zone
-    registration.delete()
-    
+    device_zone.save()     # create the DeviceZone for the new device
+
     # return our local (server) Device, its Zone, and the newly created DeviceZone, to the client
     return JsonResponse(
         serializers.serialize("json", [Device.get_own_device(), registration.zone, device_zone], client_version=client_device.version, ensure_ascii=False)

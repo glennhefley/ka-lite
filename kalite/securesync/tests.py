@@ -7,7 +7,7 @@ from django.test import TestCase
 import crypto
 import settings
 from securesync.models import Facility, FacilityUser, FacilityGroup
-from utils.django_utils import call_command_with_output
+from kalite.utils.django_utils import call_command_with_output
 
 
 class ChangeLocalUserPassword(unittest.TestCase):
