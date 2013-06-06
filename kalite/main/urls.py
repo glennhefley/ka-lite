@@ -49,7 +49,6 @@ if settings.AUTO_LOAD_TEST:
     
     # the following pattern is a catch-all, so keep it last:
     url(r'^topics/(?P<splat>.+)/$', 'splat_handler', {}, 'splat_handler'),
-)
 
 handler404 = 'main.views.distributed_404_handler'
 handler500 = 'main.views.distributed_500_handler'
