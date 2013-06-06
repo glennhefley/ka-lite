@@ -77,7 +77,7 @@ def register_device(request):
             "error": "Client device must be self-signed with a signature matching its own public key.",
             "code": "client_device_invalid_signature",
         }, status=500)
-    
+
     # Check if its public key has been registered
     try:
         registration = RegisteredDevicePublicKey.objects.get(public_key=client_device.public_key)
