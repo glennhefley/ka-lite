@@ -4,7 +4,7 @@ import shutil
 import platform
 import tempfile
 from optparse import make_option
-from zipfile import ZipFile, ZIP_DEFLATED
+from zipfile import ZipInfo, ZipFile, ZIP_DEFLATED
 
 from django.core.management.base import BaseCommand, CommandError
 from django.core.management import call_command
@@ -218,8 +218,15 @@ class Command(BaseCommand):
             for srcpath,fdict in files_dict.items():
                 if options['verbosity']>=1:
                     print "Adding to zip: %s" % srcpath
+
                 try:
-                    zfile.write(srcpath, arcname=fdict["dest_path"])
+                    if os.path.splitext(fdict["dest_path"])[1] != ".sh":
+                        zfile.write(srcpath, arcname=fdict["dest_path"])
+                    else:
+                        info = ZipInfo(fdict["dest_path"])
+                        info.external_attr = 0755 << 16L # give full access to included file
+                        with open(srcpath, "r") as fh:
+                            zfile.writestr(info, fh.read())
                 except Exception as e:
                     self.stderr.write("Failed to write %s to %s: %s\n" % (str(srcpath), str(fdict["dest_path"]), str(e)))
                      
@@ -227,6 +234,7 @@ class Command(BaseCommand):
         if options['file']=="__default__":
             options['file'] = create_default_archive_filename(options)
         shutil.move(fil, options['file']) # move the archive
+
         #except Exception as e:
         #    raise e
         #    self.command_error(str(e))
