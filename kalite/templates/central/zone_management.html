@@ -127,14 +127,27 @@
 {% block content %}
 
 <div id="zone_container">
-	<h1 class="title">
-	    <a href="{% url org_management %}">
-	        {{org.name }}
-	    </a>
-	    &gt; {{ zone.name }}
-	    <span class="glossary-link nudge-left" title="A Zone is the area in which multiple devices may connect to share content with each other."></span>
-	</h1>
-
+    <div id="titlebar">
+        <div class="floatleft">
+            <h1 class="title">
+                <a href="{% url org_management %}">
+                    {{org.name }}
+                </a>
+                &gt; {{ zone.name }}
+                <span class="glossary-link nudge-left" title="A Zone is the area in which multiple devices may connect to share content with each other."></span>
+            </h1>
+        </div>
+        <div id="actions" style="float:right" class="floatright">
+            <div class="floatleft">
+                <h2><a class="facility-action simple-button" href="{{ facility.id }}/">Upload data</a></h2>
+            </div>
+            <div class="floatleft">
+                <h2><a class="facility-action simple-button" href="{{ facility.id }}/">Download data</a></h2>
+            </div>
+        </div>
+    </div>
+    <br/>
+    
 	<div id="devices">
         <!-- Devices title -->
         <div class="organization">
