@@ -1,3 +1,9 @@
+"""
+Note: this module should not depend on central, 
+so we can exclude shipping central server code
+to distributed servers.
+"""
+
 import crypto
 import datetime
 import logging
@@ -296,8 +302,7 @@ class Zone(SyncedModel):
 
                 return cert.raw_value
         return None
-    
-       
+        
     def __unicode__(self):
         return self.name
 

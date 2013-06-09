@@ -54,8 +54,11 @@ urlpatterns += patterns('central.views',
     url(r'^faq/', include('faq.urls')),
     url(r'^contact/', include('contact.urls')),
     url(r'^install/$', 'install_wizard', {}, 'install_wizard'),
+
     url(r'^wiki/(?P<path>\w+)/$', redirect_to, {'base_url': settings.CENTRAL_WIKI_URL}),
     url(r'^about/$', redirect_to, { 'base_url': 'http://learningequality.org/' }),
+
+    url(r'^download/kalite/(?P<args>.*)/$', 'download_kalite', {"argnames": ["platform", "locale", "zone_id", "n_certs"]}, 'download_kalite'),
 )
 
 handler404 = 'central.views.central_404_handler'
