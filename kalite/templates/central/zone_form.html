@@ -3,6 +3,9 @@
 {% block content %}
 
 <style>
+h2 { 
+    margin-bottom: 25px;
+}
 
 input, textarea {
 	width: 275px;
@@ -18,12 +21,12 @@ input.submit{
 <form method="post" class="basic-form">
 {% csrf_token %}
 
-{% if form.instance.pk %}
-<h2>Update Your Zone</h2>
-{% else %}
-<h2>Create A Zone</h2>
-{% endif %}
-
+<div>
+    <h2>
+        {% if form.instance.pk %}Update Your Zone{% else %}Create A Zone{% endif %}
+        <span class="glossary-link nudge-left" title="A Zone is the area in which multiple devices may connect to share content with each other."></span>
+    </h2>
+    
 {{ form.as_p }}
 
 {% if form.instance.pk %}

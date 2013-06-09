@@ -3,7 +3,9 @@
 {% block content %}
 
 <style>
-
+h2 { 
+    margin-bottom: 25px;
+}
 input, textarea {
 	width: 275px;
 }
@@ -18,11 +20,12 @@ input.submit{
 <form method="post" class="basic-form">
 {% csrf_token %}
 
-{% if form.instance.pk %}
-<h2>Update Your Organization</h2>
-{% else %}
-<h2>Create An Organization</h2>
-{% endif %}
+<div>
+    <h2>
+        {% if form.instance.pk %}Update Your Organization{% else %}Create An Organization{% endif %}
+        <span class="glossary-link nudge-left" title="An Organization is an entity responsible for administering zones."></span>
+    </h2>
+</div>
 
 {{ form.as_p }}
 

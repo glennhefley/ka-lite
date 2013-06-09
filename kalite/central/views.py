@@ -10,7 +10,7 @@ from securesync.models import Zone, SyncSession
 from django.core.urlresolvers import reverse
 from django.contrib.auth.decorators import login_required
 from django.views.decorators.csrf import csrf_exempt
-from securesync.models import Facility
+from securesync.models import Facility, FacilityUser, FacilityGroup, DeviceZone
 from securesync.forms import FacilityForm
 from django.contrib import messages
 
@@ -18,12 +18,11 @@ import requests
 import settings
 
 
-@render_to("central/homepage.html")
-def homepage(request):
+@login_required
+@render_to("central/org_management.html")
+def org_management(request):
     
     # show the static landing page to users that aren't logged in
-    if not request.user.is_authenticated():
-        return landing_page(request)
     
     # get a list of all the organizations this user helps administer    
     organizations = get_or_create_user_profile(request.user).get_organizations()
@@ -42,7 +41,7 @@ def homepage(request):
             # send the invitation email, and save the invitation record
             form.instance.send(request)
             form.save()
-            return HttpResponseRedirect(reverse("homepage"))
+            return HttpResponseRedirect(reverse("organization_management"))
         else: # we need to inject the form into the correct organization, so errors are displayed inline
             for org in organizations:
                 if org.pk == int(request.POST.get("organization")):
@@ -85,7 +84,7 @@ def org_invite_action(request, invite_id):
         if data.get("decline"):
             messages.warning(request, "You have declined to join " + org.name + " as an admin.")
         invite.delete()
-    return HttpResponseRedirect(reverse("homepage"))
+    return HttpResponseRedirect(reverse("organization_management"))
 
 
 @login_required
@@ -103,7 +102,7 @@ def delete_admin(request, org_id, user_id):
     deletion.save()
     org.users.remove(admin)
     messages.success(request, "You have succesfully removed " + admin.username + " as an administrator for " + org.name + ".")
-    return HttpResponseRedirect(reverse("homepage"))
+    return HttpResponseRedirect(reverse("organization_management"))
 
 
 @login_required
@@ -116,7 +115,7 @@ def delete_invite(request, org_id, invite_id):
     deletion.save()
     invite.delete()
     messages.success(request, "You have succesfully revoked the invitation for " + invite.email_to_invite + ".")
-    return HttpResponseRedirect(reverse("homepage"))
+    return HttpResponseRedirect(reverse("organization_management"))
 
  
 @login_required
@@ -137,7 +136,7 @@ def organization_form(request, id=None):
             form.instance.users.add(request.user)
             # form.instance.save()
             if old_org:
-                return HttpResponseRedirect(reverse("homepage"))
+                return HttpResponseRedirect(reverse("organization_management"))
             else:    
                 return HttpResponseRedirect(reverse("zone_form", kwargs={"id": "new", "org_id": form.instance.pk}) )
     else:
@@ -164,17 +163,62 @@ def zone_form(request, org_id=None, id=None):
         if form.is_valid():
             form.instance.save()
             org.zones.add(form.instance)
-            return HttpResponseRedirect(reverse("homepage"))
+            return HttpResponseRedirect(reverse("organization_management"))
     else:
         form = ZoneForm(instance=zone)
     return {
         "form": form
     }
 
+@login_required
+@render_to("central/zone_management.html")
+def zone_management(request, org_id=None, id=None):
+
+    # Validate input
+    org = get_object_or_404(Organization, pk=org_id)
+    if not org.is_member(request.user):
+        return HttpResponseNotAllowed("You do not have permissions for this organization.")
+    if id != "new":
+        zone = get_object_or_404(Zone, pk=id)
+        if org.zones.filter(pk=zone.pk).count() == 0:
+            return HttpResponseNotAllowed("This organization does not have permissions for this zone.")
+    else:
+        zone = None
+
+    # Accumulate facility data
+    facilities = Facility.objects.filter(zone_fallback=zone)
+    facility_data = dict()
+    for facility in facilities:
+        facility_data[facility.id] = { 
+            "name": facility.name,
+            "num_users":  FacilityUser.objects.filter(facility=facility).count(),
+            "num_groups": FacilityGroup.objects.filter(facility=facility).count(),
+            "id": facility.id,
+        }
+    
+    # Accumulate device data
+    devices = DeviceZone.objects.filter(zone=zone)
+    device_data = dict()
+    for device in devices:
+        num_times_synced = SyncSessions.objects.filter(client_device=device).count()
+        device_data[device.id] = { 
+            "name": device.name, 
+            "num_times_synced": num_times_synced,
+            "last_sync_time": None if num_times_synced == 0 else SyncSessions.objects.filter(client_device=device, ).order_by("-timestamp")[0],
+        }
+        
+    print facility_data
+    return { 
+        "org": org,
+        "zone": zone,
+        "facilities": facility_data,
+        "devices": device_data,
+    }   
+
 
 @login_required
-@render_to("securesync/facility_admin.html")
-def central_facility_admin(request, org_id=None, zone_id=None):
+@render_to("securesync/facility_management.html")
+def facility_management(request, org_id=None, zone_id=None):
     facilities = Facility.objects.by_zone(zone_id)
     return {
         "zone_id": zone_id,
@@ -183,8 +227,8 @@ def central_facility_admin(request, org_id=None, zone_id=None):
 
 
 @login_required
-@render_to("securesync/facility_edit.html")
-def central_facility_edit(request, org_id=None, zone_id=None, id=None):
+@render_to("securesync/facility_form.html")
+def facility_form(request, org_id=None, zone_id=None, id=None):
     org = get_object_or_404(Organization, pk=org_id)
     if not org.is_member(request.user):
         return HttpResponseNotAllowed("You do not have permissions for this organization.")
@@ -200,7 +244,59 @@ def central_facility_edit(request, org_id=None, zone_id=None, id=None):
         if form.is_valid():
             form.instance.zone_fallback = get_object_or_404(Zone, pk=zone_id)
             form.save()
-            return HttpResponseRedirect(reverse("central_facility_admin", kwargs={"org_id": org_id, "zone_id": zone_id}))
+            return HttpResponseRedirect(reverse("facility_management", kwargs={"org_id": org_id, "zone_id": zone_id}))
+    else:
+        form = FacilityForm(instance=facil)
+    return {
+        "form": form,
+        "zone_id": zone_id,
+    }
+
+@login_required
+@render_to("securesync/facility_usage.html")
+def facility_usage(request, org_id=None, zone_id=None, id=None):
+    org = get_object_or_404(Organization, pk=org_id)
+    if not org.is_member(request.user):
+        return HttpResponseNotAllowed("You do not have permissions for this organization.")
+    zone = org.zones.get(pk=zone_id)
+    if id != "new":
+        facil = get_object_or_404(Facility, pk=id)
+        if not facil.in_zone(zone):
+            return HttpResponseNotAllowed("This facility does not belong to this zone.")
+    else:
+        facil = None
+    if request.method == "POST":
+        form = FacilityForm(data=request.POST, instance=facil)
+        if form.is_valid():
+            form.instance.zone_fallback = get_object_or_404(Zone, pk=zone_id)
+            form.save()
+            return HttpResponseRedirect(reverse("facility_management", kwargs={"org_id": org_id, "zone_id": zone_id}))
+    else:
+        form = FacilityForm(instance=facil)
+    return {
+        "form": form,
+        "zone_id": zone_id,
+    }
+
+@login_required
+@render_to("main/coach_reports.html")
+def facility_mastery(request, org_id=None, zone_id=None, id=None):
+    org = get_object_or_404(Organization, pk=org_id)
+    if not org.is_member(request.user):
+        return HttpResponseNotAllowed("You do not have permissions for this organization.")
+    zone = org.zones.get(pk=zone_id)
+    if id != "new":
+        facil = get_object_or_404(Facility, pk=id)
+        if not facil.in_zone(zone):
+            return HttpResponseNotAllowed("This facility does not belong to this zone.")
+    else:
+        facil = None
+    if request.method == "POST":
+        form = FacilityForm(data=request.POST, instance=facil)
+        if form.is_valid():
+            form.instance.zone_fallback = get_object_or_404(Zone, pk=zone_id)
+            form.save()
+            return HttpResponseRedirect(reverse("facility_management", kwargs={"org_id": org_id, "zone_id": zone_id}))
     else:
         form = FacilityForm(instance=facil)
     return {

@@ -1,6 +1,6 @@
 {% extends 'base_central.html' %}
 
-{% block home_active %}active{% endblock home_active %}
+{% block management_active %}active{% endblock management_active %}
 
 {% block headjs %}
 	<script>
@@ -139,7 +139,7 @@
 {% block content %}
 
 <div id="org_container">
-	<h1 class="title">My Organizations<span class="glossary-link nudge-left" title="An Organization is an entity responsible for administering zones."></span></h2>
+	<h1 class="title">My Organizations<span class="glossary-link nudge-left" title="An Organization is an entity responsible for administering zones."></span></h1>
 	{% for invite in invitations %}
 		<div class="org-invite">
 			<form method="post" action="{% url org_invite_action invite_id=invite.pk %}"> 
@@ -177,11 +177,8 @@
 									{{ zone.name }}
 								</h4>
 								<div class="nudge-left floatleft">
-									<a href="{% url zone_form org_id=org.id id=zone.id %}">
-										(Edit Zone)
-									</a>
-									<a href="{% url central_facility_admin org_id=org.id zone_id=zone.id %}">
-										(Manage Facilities)
+									<a href="{% url zone_management org_id=org.id id=zone.id %}">
+										(manage)
 									</a>
 								</div>
 								<div class="clearfix"></div>
