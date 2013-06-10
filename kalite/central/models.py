@@ -1,3 +1,4 @@
+import collections
 import random
 import datetime
 
@@ -96,7 +97,7 @@ class UserProfile(models.Model):
         return self.user.username
 
     def get_organizations(self):
-        orgs = {} # no dictionary comprehensions, so have to loop
+        orgs = collections.OrderedDict() # no dictionary comprehensions, so have to loop
         for org in self.user.organization_set.all():
             orgs[org.pk] = org
         

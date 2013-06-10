@@ -288,6 +288,12 @@ class SyncClient(object):
         if self.counters_to_download is None or self.counters_to_upload is None:
             self.sync_device_records()
 
+        download_results = self.download_models()
+        upload_results = self.upload_models()
+        
+        return {"download_results": download_results, "upload_results": upload_results}
+        
+    def download_models(self):
         # Download (but prepare for errors--both thrown and unthrown!)
         download_results = {
             "saved_model_count" : 0,
@@ -303,6 +309,12 @@ class SyncClient(object):
             download_results["error"] = e
             self.session.errors += 1
 
+        self.counters_to_download = None
+
+        return download_results
+
+        
+    def upload_models(self):
         # Upload (but prepare for errors--both thrown and unthrown!)
         upload_results = {
             "saved_model_count" : 0,
@@ -318,8 +330,6 @@ class SyncClient(object):
             upload_results["error"] = e
             self.session.errors += 1
                 
-
-        self.counters_to_download = None
         self.counters_to_upload = None
         
-        return {"download_results": download_results, "upload_results": upload_results}
+        return upload_results

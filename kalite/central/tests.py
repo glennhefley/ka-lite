@@ -40,7 +40,7 @@ class SuperUserTest(KALiteCentralTestCase):
         
         # Make sure that the page changed to the admin homepage
         self.assertTrue(self.wait_for_page_change(login_url), "RETURN causes page to change")
-        self.assertIn(reverse("homepage"), self.browser.current_url, "Login browses to homepage (account admin)" )
+        self.assertIn(reverse("organization_managemnet"), self.browser.current_url, "Login browses to homepage (account admin)" )
         self.assertIn("Account administration", self.browser.title, "Check account admin page title")
 
 

@@ -40,18 +40,27 @@ urlpatterns += patterns('central.views',
     url(r'^delete_invite/(?P<org_id>\w+)/(?P<invite_id>\w+)/$', 'delete_invite', {}, 'delete_invite'), 
     url(r'^accounts/', include('registration.urls')),
 
+    # Organization
     url(r'^organization/$', 'org_management', {}, 'org_management'),
     url(r'^organization/(?P<id>\w+)/$', 'organization_form', {}, 'organization_form'),
+    url(r'^organization/invite_action/(?P<invite_id>\w+)/$', 'org_invite_action', {}, 'org_invite_action'),
+
+    # Zone
     url(r'^organization/(?P<org_id>\w+)/zone/(?P<zone_id>\w+)/edit$', 'zone_form', {}, 'zone_form'),
     url(r'^organization/(?P<org_id>\w+)/zone/(?P<zone_id>\w+)/$', 'zone_management', {}, 'zone_management'),
+    url(r'^organization/(?P<org_id>\w+)/zone/(?P<zone_id>\w+)/upload/$', 'zone_data_upload', {}, 'zone_data_upload'),
+    url(r'^organization/(?P<org_id>\w+)/zone/(?P<zone_id>\w+)/download/$', 'zone_data_download', {}, 'zone_data_download'),
+
+    # Device
     url(r'^organization/(?P<org_id>\w+)/zone/(?P<zone_id>\w+)/device/(?P<device_id>\w+)/$', 'device_management', {}, 'device_management'),
+    url(r'^organization/(?P<org_id>\w+)/zone/(?P<zone_id>\w+)/device/(?P<device_id>\w+)/upload/$', 'device_data_upload', {}, 'device_data_upload'),
+    url(r'^organization/(?P<org_id>\w+)/zone/(?P<zone_id>\w+)/device/(?P<device_id>\w+)/download/$', 'device_data_download', {}, 'device_data_download'),
+
+    # Facility
     url(r'^organization/(?P<org_id>\w+)/zone/(?P<zone_id>\w+)/facility/$', 'facility_management', {}, 'facility_management'),
     url(r'^organization/(?P<org_id>\w+)/zone/(?P<zone_id>\w+)/facility/(?P<id>\w+)/edit$', 'facility_form', {}, 'facility_form'),
     url(r'^organization/(?P<org_id>\w+)/zone/(?P<zone_id>\w+)/facility/(?P<id>\w+)/mastery/$', 'facility_mastery', {}, 'facility_mastery'),
     url(r'^organization/(?P<org_id>\w+)/zone/(?P<zone_id>\w+)/facility/(?P<id>\w+)/usage/$', 'facility_usage', {}, 'facility_usage'),
-    url(r'^organization/(?P<org_id>\w+)/zone/(?P<zone_id>\w+)/facility/(?P<id>\w+)/upload/$', 'facility_data_upload', {}, 'facility_data_upload'),
-    url(r'^organization/(?P<org_id>\w+)/zone/(?P<zone_id>\w+)/facility/(?P<id>\w+)/download/$', 'facility_data_download', {}, 'facility_data_download'),
-    url(r'^organization/invite_action/(?P<invite_id>\w+)/$', 'org_invite_action', {}, 'org_invite_action'),
 
     url(r'^cryptologin/$', 'crypto_login', {}, 'crypto_login'), 
 #    url(r'^getstarted/$','get_started', {}, 'get_started'),

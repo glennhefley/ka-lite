@@ -23,23 +23,7 @@ from config.models import Settings
 from config.utils import set_as_registered
 from securesync.models import SyncSession, Device, RegisteredDevicePublicKey, Zone, Facility, FacilityGroup
 from securesync.api_client import SyncClient
-from kalite.utils.decorators import require_admin
-
-
-def central_server_only(handler):
-    def wrapper_fn(*args, **kwargs):
-        if not settings.CENTRAL_SERVER:
-            return HttpResponseNotFound("This path is only available on the central server.")
-        return handler(*args, **kwargs)
-    return wrapper_fn
-
-
-def distributed_server_only(handler):
-    def wrapper_fn(*args, **kwargs):
-        if settings.CENTRAL_SERVER:
-            return HttpResponseNotFound(_("This path is only available on distributed servers."))
-        return handler(*args, **kwargs)
-    return wrapper_fn
+from kalite.utils.decorators import require_admin, central_server_only, distributed_server_only
 
 
 def register_public_key(request):
@@ -142,7 +126,7 @@ def register_public_key_server(request):
         if form.is_valid():
             form.save()
             messages.success(request, _("The device's public key has been successfully registered. You may now close this window."))
-            return HttpResponseRedirect(reverse("homepage"))
+            return HttpResponseRedirect(reverse("zone_management"))
     else:
         form = RegisteredDevicePublicKeyForm(request.user)
     return {
@@ -200,6 +184,7 @@ def add_facility_student(request):
     return add_facility_user(request, is_teacher=False)
 
 
+@distributed_server_only
 @render_to("securesync/add_facility_user.html")
 @facility_required
 def add_facility_user(request, facility, is_teacher):

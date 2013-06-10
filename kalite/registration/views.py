@@ -12,6 +12,8 @@ from django.contrib.auth import logout
 from django.contrib.auth import views as auth_views
 from django.db import IntegrityError, transaction
 from django.http import HttpResponse
+from django.contrib.auth import REDIRECT_FIELD_NAME
+from django.core.urlresolvers import reverse
 from django.utils.translation import ugettext as _
 
 from central.forms import OrganizationForm
@@ -19,14 +21,16 @@ from central.models import Organization
 from securesync.models import Zone
 from registration.backends import get_backend
 from utils.mailchimp import mailchimp_subscribe
+from kalite.utils.decorators import central_server_only, distributed_server_only
 
 
-
+@central_server_only
 def complete(request, *args, **kwargs):
     messages.success(request, "Congratulations! Your account is now active. To get started, "
         + "login to the central server below, to administer organizations and zones.")
     return redirect("auth_login")
 
+@central_server_only
 def activate(request, backend,
              template_name='registration/activate.html',
              success_url=None, extra_context=None, **kwargs):
@@ -108,6 +112,7 @@ def activate(request, backend,
                               context_instance=context)
 
 
+@central_server_only
 @transaction.commit_on_success
 def register(request, backend, success_url=None, form_class=None,
              disallowed_url='registration_disallowed',
@@ -257,11 +262,15 @@ def register(request, backend, success_url=None, form_class=None,
                               { 'form': form, "org_form" : org_form},
                               context_instance=context)
 
+@central_server_only
 def login_view(request, *args, **kwargs):
     """Force lowercase of the username.
     
     Since we don't want things to change to the user (if something fails),
     we should try the new way first, then fall back to the old way"""
+
+    extra_context = { "redirect": { "name": REDIRECT_FIELD_NAME, "url": reverse('org_management')} }
+    kwargs["extra_context"] = extra_context
 
     # Try the the lcased way
     old_POST = request.POST
@@ -269,9 +278,9 @@ def login_view(request, *args, **kwargs):
     if "username" in request.POST:
         request.POST['username'] = request.POST['username'].lower()
     template_response = auth_views.login(request, *args, **kwargs)
-
+    
     # Try the original way    
-    # If we have a login error, try logging in with lcased version
+    # If we have a login error, try logging in with l-cased version
     template_data = getattr(template_response, 'context_data', {})
     template_form = template_data.get('form', {})
     template_errors = getattr(template_form, 'errors', {})
@@ -279,10 +288,11 @@ def login_view(request, *args, **kwargs):
         request.POST = old_POST
         template_response = auth_views.login(request, *args, **kwargs)
 
+    
     # Return the logged in version, or failed to login using lcased version
     return template_response    
 
-    
+@central_server_only
 def logout_view(request):
     logout(request)
-    return redirect("homepage")
+    return redirect("landing_page")

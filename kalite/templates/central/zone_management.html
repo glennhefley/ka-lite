@@ -1,94 +1,10 @@
 {% extends 'base_central.html' %}
 
+{% block title %}{{ zone.name }} - Zone Management Console{% endblock title %}
 {% block management_active %}active{% endblock management_active %}
 
 {% block headcss %}
-	<style>
-
-	body {
-		min-height: 500px;
-	}
-
-	ul, li {
-	    list-style: none;
-        margin-left: 0px;
-	}
-
-    .facility, .device {
-        width:100%;
-    }
-
-    #zone_container{
-        width: 100%;
-    }
-    .titlebar__title {
-        padding: 10px 0px 28px 0px;
-        border-bottom: 1px #E7E7E7 solid;
-    }
-    .titlebar__title li{
-        display: inline;
-        font-size: 20px;
-        padding-top: 5px;
-    }
-
-    .titlebar__buttons{
-        float: right;
-        margin: 0;
-    }
-
-    .devices{
-        padding-top: 40px;
-    }
-    .facilities{
-        padding-top: 20px;
-    }
-
-    .facilities__header li{
-        display: inline;
-        padding-right: 10px;
-    }
-
-    .simple-table{
-        margin-top: 20px;
-        font-size: 13px;
-        width: 100%;
-        border: 1px #DFDFDF solid;
-    }
-
-    .simple-table th{
-        font-weight: bold;
-        text-align: left; 
-        padding: 8px 8px 8px 10px;
-        background-color: #E7E7E7;
-    }
-
-    .simple-table td{
-        padding: 10px;
-        border-bottom: 1px #DFDFDF solid;
-    }
-
-    .green_button{
-        -webkit-border-radius: 5px;
-        -moz-border-radius: 5px;
-        border-radius: 5px;
-        background-color: #91ca7f;
-        font-family: Arial, Helvetica, sans-serif;
-        font-size: 13px;
-        color: #ffffff;
-        padding: 10px 20px;
-        border:0px;
-        vertical-align: middle;
-    }
-
-    a.green_button, a.green_button:hover,input.green_button, input.green_button:hover {
-        color: white !important; 
-        text-decoration: none;
-    }
-    a.green_button:hover,input.green_button:hover{
-        background-color:#C0C0C0;
-    } 
-	</style>
-
+    <link  rel="stylesheet" type="text/css" href="/static/css/management.css" />
 {% endblock headcss %}
 
 {% block content %}
@@ -97,10 +13,15 @@
     <div class="titlebar">
         <ul class="titlebar__title">
             <li><a href="{% url org_management %}"> {{ org.name }}</a></li>
-            <li>&gt; {{ zone.name }}</li>
+            <li>
+                &gt; {{ zone.name }}
+                <a href="{% url zone_form org_id=org.id zone_id=zone.id %}">(edit)</a>
+            </li>
+            <ul class="titlebar__buttons">
+                <li><a class="green_button" href="{% url zone_data_download org_id=org.id zone_id=zone.id %}">Download all zone data</a></li>
+            </ul>
         </ul>
     </div>
-    
     <div class="devices">
         <h2>Devices</h2>
 
@@ -112,7 +33,8 @@
                 <tr>
                     <th width="250px">Device name</th>
                     <th width="200px"># Times Synced</th>
-                    <th>Last Time Synced</th>
+                    <th width="200px">Last Time Synced</th>
+                    <th width="200px">Download</th>
                 </tr>
                 {% for id,device in devices.items %}
                     <tr>
@@ -122,12 +44,29 @@
                             </a></td>
                         <td>{{ device.num_times_synced }}</td>
                         <td>{{ device.last_time_synced }}</td>
+                        <td>
+                            <a class="green_button" href="{% url device_data_download org_id=org.id zone_id=zone.id device_id=id %}">
+                                Download device data
+                            </a>
+                        </li>
+</td>
                     </tr>
 
                 {% endfor %}
             </table>
         {% endif %}
+        <br/>
+        <form name="upload_form" id="upload_form" method="post" 
+              action="{% url zone_data_upload org_id=org.id zone_id=zone.id %}"
+              enctype="multipart/form-data" >{% csrf_token %}
+            <div id="form_data">
+                <br/>
+                {{ upload_form.as_p }}
+            </div>
+            <input class="add green_button" type="submit" value="Bulk upload zone data">
+        </form>
     </div>
+    <div>
 
 
 	<div class="facilities">
@@ -143,11 +82,8 @@
                 <th width="250px">Device name</th>
                 <th width="100px">Reports</th>
                 <th width="100px"></th>
-                <th width="100px">Actions</th>
-                <th width="100px"></th>
                 <th width="80px"># users</th>
                 <th width="80px"># groups</th>
-                <th># groups</th>
             </tr>
         
             {% for id,facility in facilities.items %}
@@ -160,10 +96,7 @@
 
                     <td><a href="{% url facility_usage org_id=org.id zone_id=zone.id id=id %}">(usage) </a> </td>
                     <td><a href="{% url facility_mastery org_id=org.id zone_id=zone.id id=id %}">(mastery)</a> </td>
-                    
-                    <td><a href="{% url facility_data_download org_id=org.id zone_id=zone.id id=id %}">(download data) </a> </td>
-                    <td><a href="{% url facility_data_upload org_id=org.id zone_id=zone.id id=id %}">(upload data)</a> </td>
-                    
+                                        
                     <td>{{ facility.num_users }}</td>
                     <td>{{ facility.num_groups }}</td>
                 </tr>
@@ -176,5 +109,17 @@
             <input class="add green_button" type="submit" value="Create a new facility">
         </form>
     </div>
+<script>
+$("#form_data").hide()
+$("#upload_form").submit(function() {
+    // First press: show file entry
+    if ($('#form_data').filter(":visible").length==0) { 
+        $('#form_data').show();
+        return false;
+    }
+    // Second press: submit form (default)
+});
+</script>
 
+</script>
 {% endblock content %}

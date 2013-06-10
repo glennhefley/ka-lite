@@ -1,6 +1,7 @@
 import logging
 import re, json
 import requests
+import datetime
 from annoying.decorators import render_to
 from annoying.functions import get_object_or_None
 from decorator.decorator import decorator
@@ -19,101 +20,19 @@ from django.template.loader import render_to_string
 import kalite
 import settings
 from central.models import Organization, OrganizationInvitation, DeletionRecord, get_or_create_user_profile, FeedListing, Subscription
-from central.forms import OrganizationForm, ZoneForm, OrganizationInvitationForm
+from central.forms import OrganizationForm, ZoneForm, OrganizationInvitationForm, UploadFileForm
 from securesync.api_client import SyncClient
 from securesync.models import Facility, FacilityUser, FacilityGroup, DeviceZone, Device
 from securesync.models import Zone, SyncSession, ZoneInstallCertificate
+from main.models import ExerciseLog, VideoLog
+from securesync.model_sync import save_serialized_models, get_serialized_models
 from securesync.forms import FacilityForm
 from utils.packaging import package_offline_install_zip
+from utils.decorators import authorized_login_required
 
 
 def get_request_var(request, var_name, default_val="__empty__"):
     return  request.POST.get(var_name, request.GET.get(var_name, default_val))
-
-
-@render_to("central/install_wizard.html")
-def install_wizard(request):
-
-    
-    # get a list of all the organizations this user helps administer,
-    #   then choose the selected organization (if possible)
-    if request.user.is_anonymous():
-        organizations = []
-        organization = None
-        organization_id = None
-        zones = []
-        zone = None
-        zoneid = None
-        num_certificates = 1
-        
-    else:
-        # Get all data
-        organization_id = get_request_var(request, "organization", None)
-        zone_id = get_request_var(request, "zone", None)
-        num_certificates = int(get_request_var(request, "num_certificates", 1))
-        
-        if organization_id:
-            organizations = request.user.organization_set.filter(id=organization_id)
-            organization = organizations[0] if organizations else None
-        else:
-            organizations = request.user.organization_set.all()
-            if len(organizations) == 1:
-                organization_id = organizations[0].id
-                organization = organizations[0]
-            else:
-                organization = None
-        
-        # If a zone is selected grab it
-        if organization_id and len(organizations)==1:
-            zones = organizations[0].zones.all()
-            zone = get_object_or_None(Zone, id=zone_id)
-            zone = zone or (zones[0] if len(zones)==1 else None)              
-        else:
-            zones = []
-            zone = None
-            
-
-    # Generate install certificates
-    if request.method == "POST":
-        platform = get_request_var(request, "platform", "all")
-        locale = get_request_var(request, "locale", "en")
-        server_type = get_request_var(request, "server-type", "local")
-        
-        # assume server_type local for now, to shorten name.
-        base_archive_name = "kalite-%s-%s-%s.zip" % (platform, locale, kalite.VERSION) 
-        base_archive_path = settings.STATIC_ROOT+ "/zip/" + base_archive_name
-        
-        # This is just for demo purposes;
-        #   in the future, certificates are only generated
-        #   when the form is submitted.
-        
-        # Generate NEW certificates (into the db), as to keep enough for everybody
-        if zone:
-            certs = zone.generate_install_certificates(num_certificates=num_certificates)
-
-            # Stream out the relevant offline install data
-            from securesync.utils import dump_zone_for_offline_install
-            models_json_file = tempfile.mkstemp()[1]
-            dump_zone_for_offline_install(zone_id=zone.id, out_file=models_json_file, certs=certs)
-            
-        # Make sure the correct base zip is created, based on platform and locale
-        if not os.path.exists(base_archive_path):
-            if not os.path.exists(os.path.split(base_archive_path)[0]):
-                os.mkdir(os.path.split(base_archive_path)[0])
-
-            central_server = request.get_host() or getattr(settings, CENTRAL_SERVER_HOST, "")
-            out = call_command_with_output("package_for_download", platform=platform, locale=locale, server_type=server_type, central_server=central_server, file=base_archive_path)
-            if out[1] or out[2]:
-                raise Exception("Failed to create zip file(%d): %s" % (out[2], out[1]))
-                                
-        # Append into the zip, on disk
-        # TODO(bcipolli) the zip_file should be a read/writable self-disappearing temp file;
-        #  not via mkstemp()
-        zip_file = tempfile.mkstemp()[1]
-        shutil.copy(base_archive_path, zip_file) # duplicate the archive
-        if settings.DEBUG: # avoid "caching" "problem" in DEBUG mode
-            try: os.remove(base_archive_path)# clean up
-            except: pass
 
 
 @render_to("central/install_wizard.html")
@@ -196,6 +115,7 @@ def args_from_url(f, request, args, argnames=None):
 
     return f(request, args)
 
+
 @args_from_url
 def download_kalite(request, args, argnames=None):
 
@@ -224,6 +144,7 @@ def download_kalite(request, args, argnames=None):
     return response
 
 
+
 @login_required
 @render_to("central/org_management.html")
 def org_management(request):
@@ -248,7 +169,7 @@ def org_management(request):
             # send the invitation email, and save the invitation record
             form.instance.send(request)
             form.save()
-            return HttpResponseRedirect(reverse("organization_management"))
+            return HttpResponseRedirect(reverse("org_management"))
         else: # we need to inject the form into the correct organization, so errors are displayed inline
             for pk,org in organizations.items():
                 if org.pk == int(request.POST.get("organization")):
@@ -276,7 +197,7 @@ def add_subscription(request):
         sub.ip = request.META.get("HTTP_X_FORWARDED_FOR", request.META.get('REMOTE_ADDR', ""))
         sub.save()
         messages.success(request, "A subscription for '%s' was added." % request.POST.get("email"))
-    return HttpResponseRedirect(reverse("homepage"))
+    return HttpResponseRedirect(reverse("landing_page"))
 
 @login_required
 def org_invite_action(request, invite_id):
@@ -292,7 +213,7 @@ def org_invite_action(request, invite_id):
         if data.get("decline"):
             messages.warning(request, "You have declined to join " + org.name + " as an admin.")
         invite.delete()
-    return HttpResponseRedirect(reverse("organization_management"))
+    return HttpResponseRedirect(reverse("org_management"))
 
 
 @login_required
@@ -310,7 +231,7 @@ def delete_admin(request, org_id, user_id):
     deletion.save()
     org.users.remove(admin)
     messages.success(request, "You have succesfully removed " + admin.username + " as an administrator for " + org.name + ".")
-    return HttpResponseRedirect(reverse("organization_management"))
+    return HttpResponseRedirect(reverse("org_management"))
 
 
 @login_required
@@ -323,7 +244,7 @@ def delete_invite(request, org_id, invite_id):
     deletion.save()
     invite.delete()
     messages.success(request, "You have succesfully revoked the invitation for " + invite.email_to_invite + ".")
-    return HttpResponseRedirect(reverse("organization_management"))
+    return HttpResponseRedirect(reverse("org_management"))
 
  
 @login_required
@@ -331,7 +252,7 @@ def delete_invite(request, org_id, invite_id):
 def organization_form(request, id=None):
     if id != "new":
         org = get_object_or_404(Organization, pk=id)
-        if not org.is_member(request.user):
+        if not org.is_member(request.user) and not request.user.is_superuser:
             return HttpResponseForbidden("You do not have permissions for this organization.")
     else:
         org = None
@@ -344,7 +265,7 @@ def organization_form(request, id=None):
             form.instance.users.add(request.user)
             # form.instance.save()
             if old_org:
-                return HttpResponseRedirect(reverse("organization_management"))
+                return HttpResponseRedirect(reverse("org_management"))
             else:    
                 return HttpResponseRedirect(reverse("zone_form", kwargs={"zone_id": "new", "org_id": form.instance.pk}) )
     else:
@@ -354,11 +275,11 @@ def organization_form(request, id=None):
     } 
 
 
-@login_required
+@authorized_login_required
 @render_to("central/zone_form.html")
 def zone_form(request, org_id=None, zone_id=None):
     org = get_object_or_404(Organization, pk=org_id)
-    if not org.is_member(request.user):
+    if not org.is_member(request.user) and not request.user.is_superuser:
         return HttpResponseForbidden("You do not have permissions for this organization.")
     if zone_id != "new":
         zone = get_object_or_404(Zone, pk=zone_id)
@@ -371,12 +292,50 @@ def zone_form(request, org_id=None, zone_id=None):
         if form.is_valid():
             form.instance.save()
             org.zones.add(form.instance)
-            return HttpResponseRedirect(reverse("organization_management"))
+            return HttpResponseRedirect(reverse("org_management"))
     else:
         form = ZoneForm(instance=zone)
     return {
         "form": form
     }
+
+
+
+@authorized_login_required
+def zone_data_upload(request, org_id, zone_id):
+    #import pdb; pdb.set_trace()
+    if request.method != 'POST':
+        return HttpResponseForbidden()
+
+    form = UploadFileForm(request.POST, request.FILES)
+    if not form.is_valid():
+        return HttpResponseServerError("Unparseable POST request")
+
+    models_json = request.FILES['file'].read()
+    save_serialized_models(models_json, increment_counters=True, client_version=kalite.VERSION) #version is a lie
+     
+    return HttpResponseRedirect(reverse("zone_management", kwargs={"org_id": org_id, "zone_id": zone_id}))
+
+    
+@authorized_login_required
+def zone_data_download(request, org_id, zone_id):
+    zone = Zone.objects.get(id=zone_id)
+
+    device_counters = dict()
+    for dz in DeviceZone.objects.filter(zone=zone):
+        device = dz.device
+        device_counters[device.id] = 0
+
+    # Get the data
+    serialized_models = get_serialized_models(device_counters=device_counters, limit=100000000, zone=zone, include_count=True, client_version=kalite.VERSION)
+
+    # Stream the data back to the user."
+    user_facing_filename = "data-zone-%s-date-%s-v%s.json" % (zone.name, str(datetime.datetime.now()), kalite.VERSION)
+    user_facing_filename = user_facing_filename.replace(" ","_").replace("%","_")
+    response = HttpResponse(content=serialized_models['models'], mimetype='text/json', content_type='text/json')
+    response['Content-Disposition'] = 'attachment; filename="%s"' % user_facing_filename
+    return response
+
 
 @login_required
 @render_to("central/zone_management.html")
@@ -393,8 +352,22 @@ def zone_management(request, org_id=None, zone_id=None):
     else:
         zone = None
 
+    # Accumulate device data
+    facilities = set([])
+    device_zones = DeviceZone.objects.filter(zone=zone)
+    device_data = dict()
+    for device_zone in device_zones:
+        device = device_zone.device
+        facilities = facilities.union(set(Facility.objects.filter(signed_by=device)))
+        num_times_synced = SyncSession.objects.filter(client_device=device).count()
+        device_data[device.id] = { 
+            "name": device.name, 
+            "num_times_synced": num_times_synced,
+            "last_time_synced": None if num_times_synced == 0 else SyncSession.objects.filter(client_device=device, ).order_by("-timestamp")[0].timestamp,
+        }
+    
     # Accumulate facility data
-    facilities = Facility.objects.filter(zone_fallback=zone)
+    facilities = facilities.union(set(Facility.objects.filter(zone_fallback=zone)))
     facility_data = dict()
     for facility in facilities:
         facility_data[facility.id] = { 
@@ -404,24 +377,14 @@ def zone_management(request, org_id=None, zone_id=None):
             "id": facility.id,
         }
     
-    # Accumulate device data
-    device_zones = DeviceZone.objects.filter(zone=zone)
-    device_data = dict()
-    for device_zone in device_zones:
-        device = device_zone.device
-        num_times_synced = SyncSession.objects.filter(client_device=device).count()
-        device_data[device.id] = { 
-            "name": device.name, 
-            "num_times_synced": num_times_synced,
-            "last_time_synced": None if num_times_synced == 0 else SyncSession.objects.filter(client_device=device, ).order_by("-timestamp")[0].timestamp,
-        }
-        
+    
     print facility_data, zone, org, device_data
     return { 
         "org": org,
         "zone": zone,
         "facilities": facility_data,
         "devices": device_data,
+        "upload_form": UploadFileForm()
     }   
 
 
@@ -444,26 +407,30 @@ def facility_usage(request, org_id, zone_id, id):
     org = Organization.objects.get(id=org_id)
     zone = Zone.objects.get(id=zone_id)
     facility = Facility.objects.get(id=id)
-    groups = FacilityGroup.objects.filter(facility=facility)
-    users = FacilityUser.objects.filter(facility=facility)
+    groups = FacilityGroup.objects.filter(facility=facility).order_by("name")
+    users = FacilityUser.objects.filter(facility=facility).order_by("last_name")
+    
+    import collections
     
     # Accumulating data
-    group_data = dict()
-    user_data = dict()
+    group_data = collections.OrderedDict()
+    user_data = collections.OrderedDict()
     for user in users:
         exercise_logs = ExerciseLog.objects.filter(user=user)
         video_logs = VideoLog.objects.filter(user=user)
         
         user_data[user.pk] = {
-            "name": user.name,
+            "first_name": user.first_name,
+            "last_name": user.last_name,
+            "group_name": user.group.name,
             "total_logins": "NYI",
             "total_hours": "NYI",
             "total_videos": len(video_logs),
-            "total_exercises": len(exercies_logs),
+            "total_exercises": len(exercise_logs),
             "total_mastery": "NYI",
         }
         
-        user_group = user.group
+        group = user.group
         if not group.pk in group_data:
             group_data[group.pk] = {
                 "name": group.name,
@@ -504,7 +471,7 @@ def device_management(request, org_id, zone_id, device_id):
 @render_to("securesync/facility_form.html")
 def facility_form(request, org_id=None, zone_id=None, id=None):
     org = get_object_or_404(Organization, pk=org_id)
-    if not org.is_member(request.user):
+    if not org.is_member(request.user) and not request.user.is_superuser:
         return HttpResponseForbidden("You do not have permissions for this organization.")
     zone = org.zones.get(pk=zone_id)
     if id != "new":
@@ -530,18 +497,43 @@ def facility_form(request, org_id=None, zone_id=None, id=None):
 
 @login_required
 @render_to("main/coach_reports.html")
-def facility_mastery(request, org_id=None, zone_id=None, id=None):
-    raise NotImplementedError("facility mastery")
+def facility_mastery(request, org_id, zone_id, id):
+    raise NotImplementedError()
 
     
 @login_required
-def facility_data_upload(request, org_id=None, zone_id=None, id=None):
-    raise NotImplementedError("facility mastery")
+def device_data_upload(request, org_id, zone_id, device_id):
+    if request.method != 'POST':
+        return HttpResponseForbidden()
+
+    form = UploadFileForm(request.POST, request.FILES)
+    if not form.is_valid():
+        return HttpResponseServerError("Unparseable POST request")
+
+    models_json = request.FILES['file'].read()
+    save_serialized_models(models_json, increment_counters=True, client_version=kalite.VERSION) #version is a lie
+
+     
+    return HttpResponseRedirect(reverse("zone_management", kwargs={"org_id": org_id, "zone_id": zone_id}))
 
     
 @login_required
-def facility_data_download(request, org_id=None, zone_id=None, id=None):
-    raise NotImplementedError("facility mastery")
+def device_data_download(request, org_id, zone_id, id):
+    zone = Zone.objects.get(id=zone_id)
+    device_counters = dict()
+    for dz in DeviceZone.objects.filter(zone=zone):
+        device = dz.device
+        device_counters[device.id] = 0
+
+    # Get the data
+    serialized_models = get_serialized_models(device_counters=device_counters, limit=100000000, zone=zone, include_count=True, client_version=kalite.VERSION)
+
+    # Stream the data back to the user."
+    user_facing_filename = "data-zone-%s-date-%s-v%s.json" % (zone.name, str(datetime.datetime.now()), kalite.VERSION)
+    user_facing_filename = user_facing_filename.replace(" ","_").replace("%","_")
+    response = HttpResponse(content=serialized_models['models'], mimetype='text/json', content_type='text/json')
+    response['Content-Disposition'] = 'attachment; filename="%s"' % user_facing_filename
+    return response
 
     
 @render_to("central/glossary.html")

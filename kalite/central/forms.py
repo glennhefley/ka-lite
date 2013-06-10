@@ -34,3 +34,7 @@ class OrganizationInvitationForm(ModelForm):
 			raise forms.ValidationError("You have already sent an invitation email to this user.")
 
 		return self.cleaned_data
+
+class UploadFileForm(forms.Form):
+    file  = forms.FileField()
+
