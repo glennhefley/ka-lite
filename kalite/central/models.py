@@ -1,12 +1,22 @@
-from django.db import models
-from securesync.models import Zone
+import random
+import datetime
+
+from django.db import models, transaction
 from django.contrib.auth.models import User
 from django.core.mail import send_mail
 from django.template.loader import render_to_string
 from django.template import RequestContext
+from django.utils.translation import ugettext_lazy as _
+
 import settings
+from securesync import crypto
+from securesync.models import Zone
+
 
 def get_or_create_user_profile(user):
+    assert not user.is_anonymous(), "Should not be calling get_or_create_user_profile with an anonymous user."
+    assert user.is_authenticated(), "Should not be calling get_or_create_user_profile with an anonymous user."
+    
     return UserProfile.objects.get_or_create(user=user)[0]
 
 class Organization(models.Model):
@@ -40,7 +50,14 @@ class Organization(models.Model):
             self.owner = owner
         super(Organization, self).save(*args, **kwargs)
 
-
+    @classmethod
+    def from_zone(cls, zone):
+        """Given a zone, figure out which organization is the parent."""
+    
+        return Organization.objects.filter(zones__pk=zone.pk)
+               
+        
+        
 class UserProfile(models.Model):  
     user = models.OneToOneField(User)
 
@@ -48,7 +65,10 @@ class UserProfile(models.Model):
         return self.user.username
 
     def get_organizations(self):
-        return list(self.user.organization_set.all())
+        orgs = {} # no dictionary comprehensions, so have to loop
+        for org in self.user.organization_set.all():
+            orgs[org.pk] = org
+        return orgs
 
     
 class OrganizationInvitation(models.Model):
@@ -65,6 +85,8 @@ class OrganizationInvitation(models.Model):
         cdict = {
             'organization': self.organization,
             'invited_by': self.invited_by,
+            'central_server_host': request.META.get('HTTP_HOST', settings.CENTRAL_SERVER_HOST), # for central server actions, determine DYNAMICALLY to be safe
+
         }
         # Invite an existing user
         if User.objects.filter(email=to_email).count() > 0:
@@ -98,3 +120,4 @@ class Subscription(models.Model):
     email = models.EmailField()
     timestamp = models.DateTimeField(auto_now_add=True)
     ip = models.CharField(max_length=100, blank=True)
+

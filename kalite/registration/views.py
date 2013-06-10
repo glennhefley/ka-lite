@@ -3,17 +3,24 @@ Views which allow users to create and activate accounts.
 
 """
 
+import copy
 
-from django.shortcuts import redirect
-from django.shortcuts import render_to_response
+from django.shortcuts import redirect, render_to_response
 from django.template import RequestContext
 from django.contrib import messages
 from django.contrib.auth import logout
-
-from django.db import IntegrityError
+from django.contrib.auth import views as auth_views
+from django.db import IntegrityError, transaction
+from django.http import HttpResponse
 from django.utils.translation import ugettext as _
 
+from central.forms import OrganizationForm
+from central.models import Organization
+from securesync.models import Zone
 from registration.backends import get_backend
+from utils.mailchimp import mailchimp_subscribe
+
+
 
 def complete(request, *args, **kwargs):
     messages.success(request, "Congratulations! Your account is now active. To get started, "
@@ -101,6 +108,7 @@ def activate(request, backend,
                               context_instance=context)
 
 
+@transaction.commit_on_success
 def register(request, backend, success_url=None, form_class=None,
              disallowed_url='registration_disallowed',
              template_name='registration/registration_form.html',
@@ -192,23 +200,52 @@ def register(request, backend, success_url=None, form_class=None,
 
     if request.method == 'POST':
         form = form_class(data=request.POST, files=request.FILES)
-        if form.is_valid():
-            form.cleaned_data['username'] = form.cleaned_data['email']
+        org_form = OrganizationForm(data=request.POST, instance=Organization())
+        
+        # Could register
+        if form.is_valid() and org_form.is_valid():
+            assert form.cleaned_data['username'] == form.cleaned_data['email'], "username should be set to email inside the form.clean() call"
+
             try:
+                # Create the user
                 new_user = backend.register(request, **form.cleaned_data)
+            
+                # Add an org.  Must create org before adding user.
+                org_form.instance.owner = new_user
+                org_form.save()
+                org = org_form.instance
+                org.users.add(new_user)
+
+                # Now add a zone, and link to the org
+                zone = Zone(name=org_form.instance.name + " Default Zone")
+                zone.save()
+                org.zones.add(zone)
+                org.save()
+
+                # Finally, try and subscribe the user to the mailing list
+                # (silently)
+                if request.POST.has_key("email_subscribe") and request.POST["email_subscribe"]=="on":
+                    # Don't want to muck with mailchimp during testing (though I did validate this)
+                    if settings.DEBUG:
+                        return HttpResponse("We'll subscribe you via mailchimp when we're in RELEASE mode, %s, we swear!" % form.cleaned_data['email'])
+                    else:
+                        return HttpResponse(mailchimp_subscribe(form.cleaned_data['email']))
+            
                 if success_url is None:
                     to, args, kwargs = backend.post_registration_redirect(request, new_user)
                     return redirect(to, *args, **kwargs)
                 else:
                     return redirect(success_url)
+                
             except IntegrityError, e:
                 if e.message=='column username is not unique':
-                    #import pdb; pdb.set_trace()
                     form._errors['__all__'] = _("An account with this email address has already been created.  Please login at the link above.")
                 else:
                     raise e
+
     else:
         form = form_class()
+        org_form = OrganizationForm()
     
     if extra_context is None:
         extra_context = {}
@@ -217,9 +254,35 @@ def register(request, backend, success_url=None, form_class=None,
         context[key] = callable(value) and value() or value
 
     return render_to_response(template_name,
-                              { 'form': form },
+                              { 'form': form, "org_form" : org_form},
                               context_instance=context)
 
+def login_view(request, *args, **kwargs):
+    """Force lowercase of the username.
+    
+    Since we don't want things to change to the user (if something fails),
+    we should try the new way first, then fall back to the old way"""
+
+    # Try the the lcased way
+    old_POST = request.POST
+    request.POST = copy.deepcopy(request.POST)
+    if "username" in request.POST:
+        request.POST['username'] = request.POST['username'].lower()
+    template_response = auth_views.login(request, *args, **kwargs)
+
+    # Try the original way    
+    # If we have a login error, try logging in with lcased version
+    template_data = getattr(template_response, 'context_data', {})
+    template_form = template_data.get('form', {})
+    template_errors = getattr(template_form, 'errors', {})
+    if template_errors:
+        request.POST = old_POST
+        template_response = auth_views.login(request, *args, **kwargs)
+
+    # Return the logged in version, or failed to login using lcased version
+    return template_response    
+
+    
 def logout_view(request):
     logout(request)
     return redirect("homepage")

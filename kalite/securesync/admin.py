@@ -9,7 +9,7 @@ class SyncSessionAdmin(admin.ModelAdmin):
     def get_client_nonce(self, obj):
         return obj.client_nonce[0:5]
     get_client_nonce.short_description = "Client nonce"
-    
+
 admin.site.register(SyncSession, SyncSessionAdmin)
 
 
@@ -23,10 +23,24 @@ class DeviceMetadataAdmin(admin.ModelAdmin):
     list_display = ("device", "is_trusted", "is_own_device", "counter_position",)
 admin.site.register(DeviceMetadata, DeviceMetadataAdmin)
 
-
 class ZoneAdmin(admin.ModelAdmin):
-    list_display = ("name", "description",)
+    list_display = ("name", "description","is_neutered")
+    def is_neutered(self, obj):
+        try:
+            return ZoneKey.objects.get(zone=obj).private_key==""
+        except ZoneKey.DoesNotExist:
+            return False
 admin.site.register(Zone, ZoneAdmin)
+
+
+class ZoneKeyAdmin(admin.ModelAdmin):
+    list_display = ("zone", "public_key", "private_key")
+admin.site.register(ZoneKey, ZoneKeyAdmin)
+
+
+class ZoneInstallCertificateAdmin(admin.ModelAdmin):
+    list_display = ("zone", "raw_value", "signed_value", "expiration_date")
+admin.site.register(ZoneInstallCertificate, ZoneInstallCertificateAdmin)
 
 
 class FacilityAdmin(admin.ModelAdmin):
@@ -52,7 +66,7 @@ admin.site.register(DeviceZone, DeviceZoneAdmin)
 
 
 class DeviceAdmin(admin.ModelAdmin):
-    list_display = ("device_id", "name", "description", "is_own_device", "is_trusted", "get_zone")
+    list_display = ("device_id", "name", "description", "is_own_device", "is_trusted", "get_zone", "version")
     
     def is_own_device(self, obj):
         return obj.devicemetadata.is_own_device

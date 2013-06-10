@@ -1,5 +1,4 @@
 import json
-import pdb
 import polib
 
 rootnode = json.loads(open("../static/data/topics.json").read())
