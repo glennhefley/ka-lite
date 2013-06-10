@@ -3,236 +3,172 @@
 {% block management_active %}active{% endblock management_active %}
 
 {% block headcss %}
-
 	<style>
+
 	body {
 		min-height: 500px;
 	}
 
 	ul, li {
 	    list-style: none;
-	    margin-left: 15px;
+        margin-left: 0px;
 	}
 
-	h1.title {
-		font-size: 30px;
-	}
-
-	h2, h3, h4 {
-		margin-bottom: 5px;
-	}
-
-	.title-bar {
-		margin-bottom: .7em;
-		padding-bottom: 5px;
-		border-bottom: 1px dotted gray;
-		width: 100%;
-
-	}
-
-	.title-bar > a {
-		position: relative;
-		top: 2px;
-	}
-
-	.title-contents {
-		padding: 10px 0px 0px 20px;
-	}
-
-	.nudge-left {
-		margin-left: 5px;
-	}
-
-	h2.title {
-		float: left;
-		margin-right: 5px;
-	}
-
-	.floatleft {
-		float:left;
-	}
-
-	h2.title {
-		font-size: 25px;
-	}
-
-	h4.title {
-		font-weight: bold;
-	}
-
-	#container .h3 !important{
-		border-bottom: none;
-	}
-
-
-	#last {
-		margin-top: 25px;
-	}
-
-	.organization, .org-invite {
-		width: 90%;
-		margin: 20px 0px;
-		border: 1px dotted gray;
-		border-radius: 5px;
-		background-color: #F8F8F8;
-	}
-
-	#invite-text > p {
-		margin: 15px 0 10px 15px;
-		padding: 0;
-	}
-
-	#invite-text > .inputs {
-		margin: 0px 0 10px 15px;
-	}
-
-	.organization > li {
-		list-style-type: none;
-		margin: 0px;
-		padding: 0px;
-	}
-
-	#new-zone {
-		margin-top: 10px;
-	}
-
-	.zones, .members {
-		min-width: 300px;
-		float: left;
-		padding: 6px 0px 10px 20px;
-	}
-
-	#form-label {
-		float: left;
-		margin-top: 3px;
-		margin-right: 5px;
-	}
-
-	.clearfix {
-		width: 100%;
-		clear: both; 
-	}
-
-	#invited-tag {
-		color: gray;
-	}
     .facility, .device {
         width:100%;
-        
     }
+
+    #zone_container{
+        width: 100%;
+    }
+    .titlebar__title {
+        padding: 10px 0px 28px 0px;
+        border-bottom: 1px #E7E7E7 solid;
+    }
+    .titlebar__title li{
+        display: inline;
+        font-size: 20px;
+        padding-top: 5px;
+    }
+
+    .titlebar__buttons{
+        float: right;
+        margin: 0;
+    }
+
+    .devices{
+        padding-top: 40px;
+    }
+    .facilities{
+        padding-top: 20px;
+    }
+
+    .facilities__header li{
+        display: inline;
+        padding-right: 10px;
+    }
+
+    .simple-table{
+        margin-top: 20px;
+        font-size: 13px;
+        width: 100%;
+        border: 1px #DFDFDF solid;
+    }
+
+    .simple-table th{
+        font-weight: bold;
+        text-align: left; 
+        padding: 8px 8px 8px 10px;
+        background-color: #E7E7E7;
+    }
+
+    .simple-table td{
+        padding: 10px;
+        border-bottom: 1px #DFDFDF solid;
+    }
+
+    .green_button{
+        -webkit-border-radius: 5px;
+        -moz-border-radius: 5px;
+        border-radius: 5px;
+        background-color: #91ca7f;
+        font-family: Arial, Helvetica, sans-serif;
+        font-size: 13px;
+        color: #ffffff;
+        padding: 10px 20px;
+        border:0px;
+        vertical-align: middle;
+    }
+
+    a.green_button, a.green_button:hover,input.green_button, input.green_button:hover {
+        color: white !important; 
+        text-decoration: none;
+    }
+    a.green_button:hover,input.green_button:hover{
+        background-color:#C0C0C0;
+    } 
 	</style>
 
 {% endblock headcss %}
 
 {% block content %}
-
 <div id="zone_container">
-    <div id="titlebar">
-        <div class="floatleft">
-            <h1 class="title">
-                <a href="{% url org_management %}">
-                    {{org.name }}
-                </a>
-                &gt; {{ zone.name }}
-                <span class="glossary-link nudge-left" title="A Zone is the area in which multiple devices may connect to share content with each other."></span>
-            </h1>
-        </div>
-        <div id="actions" style="float:right" class="floatright">
-            <div class="floatleft">
-                <h2><a class="facility-action simple-button" href="{{ facility.id }}/">Upload data</a></h2>
-            </div>
-            <div class="floatleft">
-                <h2><a class="facility-action simple-button" href="{{ facility.id }}/">Download data</a></h2>
-            </div>
-        </div>
-    </div>
-    <br/>
-    
-	<div id="devices">
-        <!-- Devices title -->
-        <div class="organization">
-            <div class="title-bar">
-                <div class="title-contents">
-                    <h2 class="title">
-                        Devices<span class="glossary-link nudge-left" title="A Device is a server running KA Lite."></span>
-                    </h2>
-                <div class="clearfix"></div>
-            </div>
-        </div>
 
-        <!-- list of devices -->
-        <div class="devices">
+    <div class="titlebar">
+        <ul class="titlebar__title">
+            <li><a href="{% url org_management %}"> {{org.name }}</a></li>
+            <li>&gt; {{ zone.name }}</li>
+            <ul class="titlebar__buttons">
+                <li><a class="green_button" href="{{ facility.id }}/">Upload data</a></li>
+                <li><a class="green_button" href="{{ facility.id }}/">Download data</a></li>
+            </ul>
+        </ul>
+    </div>
+    
+    <div class="devices">
+        <h2>Devices</h2>
+
         {% if not devices %}
-            <h4 class="nudge-left">You currently have no devices that save synced data with the central server</h4>
-        {% else %}
-            {% for device in devices %}
-            <div class="device">
-                <h4 class="floatleft">
-                    {{ device.name }}
-                </h4>
-                <div class="floatleft">{{ device.num_times_synced }}</div>
-                <div class="floatleft">{{ device.last_time_synced }}</div>
-            </div>
-            <div class="clearfix"></div>
-            </div>
-        {% endfor %}
-                <div class="clearfix"></div>
-                <form method="link" action="{% url zone_form org_id=org.id id='new' %}">
-                    <input class="add" type="submit" value="Create a new zone">
-                </form>
-        </div>
-        {% endif %}
-    </div>
+            <p>You currently have no devices that save synced data with the central server</p>
 
-
-	<div id="facilities">
-        <!-- Devices title -->
-        <div class="organization">
-            <div class="title-bar">
-                <div class="title-contents">
-                    <h2 class="title">
-                        Facilities
-                    </h2>
-                <div class="clearfix"></div>
-            </div>
-        </div>
-        
-        <!-- list of facilities -->
-        <div class="facilities">
-        {% if not facilities %}
-            <h4 class="nudge-left">You currently have no devices that save synced data with the central server</h4>
         {% else %}
-            <div class="facility">
-                <div class="floatleft header">Device name</div>
-                <div class="floatleft header"># users</div>
-                <div class="floatleft header"># groups</div>
-            </div><br/>
-            {% for key,facility in facilities.items %}
-            <div class="facility">
-                <div class="floatleft">
-                    <h4 class="floatleft">
-                        {{ facility.name }}
-                    </h4>
-                    <a class="floatleft" href="{% url facility_usage org_id=org.id zone_id=zone.id id=facility.id %}">
-                        (view usage)
-                    </a> 
-                    <a class="floatleft" href="{% url facility_mastery org_id=org.id zone_id=zone.id id=facility.id %}">
-                        (view mastery)
-                    </a> 
-                </div>
-                <div class="floatleft">{{ facility.num_users }}</div>
-                <div class="floatleft">{{ facility.num_groups }}</div>
-            </div>
-            <div class="clearfix"></div>
-            </div>
-            {% endfor %}
-            <div class="clearfix"></div>
-            <form method="link" action="{% url facility_form org_id=org.id zone_id=zone.id id='new' %}">
-                <input class="add" type="submit" value="Create a new facility">
+            <table class="simple-table">
+                <tr>
+                    <th width="250px">Device name</th>
+                    <th width="200px"># Times Synced</th>
+                    <th>Last Time Synced</th>
+                </tr>
+                {% for device in devices %}
+                    <tr>
+                        <td>{{ device.name }}</td>
+                        <td>{{ device.num_times_synced }}</td>
+                        <td>{{ device.last_time_synced }}</td>
+                    </tr>
+
+                {% endfor %}
+            </table>
+            <br>
+            <form method="link" action="{% url zone_form org_id=org.id id='new' %}">
+            <input class="add green_button" type="submit" value="Create a new zone">
             </form>
-        </div>
         {% endif %}
     </div>
 
-    
+
+	<div class="facilities">
+        <h2>Facilities</h2>
+        
+        {% if not facilities %}
+            <p>You currently have no devices that save synced data with the central server</p>
+
+        {% else %}
+
+         <table class="simple-table">
+            <tr>
+                <th width="250px">Device name</th>
+                <th width="150px">More Informations</th>
+                <th width="150px"></th>
+                <th width="80px"># users</th>
+                <th># groups</th>
+            </tr>
+        
+            {% for key,facility in facilities.items %}
+                <tr>
+                    <td>{{ facility.name }}</td>
+                    <td><a href="{% url facility_usage org_id=org.id zone_id=zone.id id=facility.id %}">(view usage) </a> </td>
+                    <td><a href="{% url facility_mastery org_id=org.id zone_id=zone.id id=facility.id %}">(view mastery)</a> </td>
+                    <td>{{ facility.num_users }}</td>
+                    <td>{{ facility.num_groups }}</td>
+                </tr>
+            {% endfor %}
+
+        </table>
+        <br>
+            <form method="link" action="{% url facility_form org_id=org.id zone_id=zone.id id='new' %}">
+                <input class="add green_button" type="submit" value="Create a new facility">
+            </form>
+
+        {% endif %}
+    </div>
+
 {% endblock content %}
