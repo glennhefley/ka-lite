@@ -302,7 +302,20 @@ class Zone(SyncedModel):
 
                 return cert.raw_value
         return None
+       
+    @classmethod
+    def get_headless_zones(cls):
+        from central.models import Organization
         
+        all_zones = Zone.objects.all()
+        headless_zones = []
+        for zone in all_zones:
+            orgs = Organization.objects.filter(zones__in=[zone])
+            if not orgs:
+                headless_zones.append(zone)
+                
+        return headless_zones
+
     def __unicode__(self):
         return self.name
 

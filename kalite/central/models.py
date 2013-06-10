@@ -30,6 +30,8 @@ class Organization(models.Model):
     zones = models.ManyToManyField(Zone)
     owner = models.ForeignKey(User, related_name="owned_organizations")
 
+    dummy_name = "Headless Zones"
+    
     def get_zones(self):
         return list(self.zones.all())
 
@@ -48,6 +50,13 @@ class Organization(models.Model):
     def save(self, owner=None, *args, **kwargs):
         if not self.owner_id:
             self.owner = owner
+            
+        # Make org unique by name, for dummy name only.
+        if self.name==Organization.dummy_name:
+            dummy_orgs = Organization.objects.filter(name=Organization.dummy_name)
+            if len(dummy_orgs)>0 and self.pk not in [d.pk for d in dummy_ogs]:
+                raise Exception("Cannot add more than one dummy org!")
+                
         super(Organization, self).save(*args, **kwargs)
 
     @classmethod
@@ -55,9 +64,31 @@ class Organization(models.Model):
         """Given a zone, figure out which organization is the parent."""
     
         return Organization.objects.filter(zones__pk=zone.pk)
-               
+    
+    @classmethod
+    def get_dummy_organization(cls, user):
+        assert user.is_superuser, "only super-users can call this method!"
         
+        orgs = cls.objects.filter(name=cls.dummy_name)
+        if not orgs:
+            org = Organization(name=cls.dummy_name, owner=user)
+            org.save()
+            return org
+        else:
+            assert len(orgs)==1, "Cannot have multiple dummy organizations"
+            return orgs[0]
         
+    @classmethod
+    def update_dummy_organization(cls, user):
+        assert user.is_superuser, "only super-users can call this method!"
+        dummy_org = Organization.get_dummy_organization(user)
+        headless_zones = Zone.get_headless_zones()
+        if headless_zones:
+            for zone in headless_zones:
+                dummy_org.zones.add(zone)
+            dummy_org.save()
+        return dummy_org
+            
 class UserProfile(models.Model):  
     user = models.OneToOneField(User)
 
@@ -68,6 +99,14 @@ class UserProfile(models.Model):
         orgs = {} # no dictionary comprehensions, so have to loop
         for org in self.user.organization_set.all():
             orgs[org.pk] = org
+        
+        # Add a dummy organization for superusers, containing
+        #   any headless zones
+        if self.user.is_superuser:
+            dummy_org = Organization.update_dummy_organization(self.user)
+            if dummy_org.zones:
+                orgs[dummy_org.pk] = dummy_org
+
         return orgs
 
     

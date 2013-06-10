@@ -96,12 +96,8 @@
 
     <div class="titlebar">
         <ul class="titlebar__title">
-            <li><a href="{% url org_management %}"> {{org.name }}</a></li>
+            <li><a href="{% url org_management %}"> {{ org.name }}</a></li>
             <li>&gt; {{ zone.name }}</li>
-            <ul class="titlebar__buttons">
-                <li><a class="green_button" href="{{ facility.id }}/">Upload data</a></li>
-                <li><a class="green_button" href="{{ facility.id }}/">Download data</a></li>
-            </ul>
         </ul>
     </div>
     
@@ -118,19 +114,18 @@
                     <th width="200px"># Times Synced</th>
                     <th>Last Time Synced</th>
                 </tr>
-                {% for device in devices %}
+                {% for id,device in devices.items %}
                     <tr>
-                        <td>{{ device.name }}</td>
+                        <td>
+                            <a href="{% url device_management org_id=org.id zone_id=zone.id device_id=id %}">
+                                {{ device.name }}
+                            </a></td>
                         <td>{{ device.num_times_synced }}</td>
                         <td>{{ device.last_time_synced }}</td>
                     </tr>
 
                 {% endfor %}
             </table>
-            <br>
-            <form method="link" action="{% url zone_form org_id=org.id id='new' %}">
-            <input class="add green_button" type="submit" value="Create a new zone">
-            </form>
         {% endif %}
     </div>
 
@@ -146,29 +141,40 @@
          <table class="simple-table">
             <tr>
                 <th width="250px">Device name</th>
-                <th width="150px">More Informations</th>
-                <th width="150px"></th>
+                <th width="100px">Reports</th>
+                <th width="100px"></th>
+                <th width="100px">Actions</th>
+                <th width="100px"></th>
                 <th width="80px"># users</th>
+                <th width="80px"># groups</th>
                 <th># groups</th>
             </tr>
         
-            {% for key,facility in facilities.items %}
+            {% for id,facility in facilities.items %}
                 <tr>
-                    <td>{{ facility.name }}</td>
-                    <td><a href="{% url facility_usage org_id=org.id zone_id=zone.id id=facility.id %}">(view usage) </a> </td>
-                    <td><a href="{% url facility_mastery org_id=org.id zone_id=zone.id id=facility.id %}">(view mastery)</a> </td>
+                    <td>
+                        <a href="{% url facility_usage org_id=org.id zone_id=zone.id id=id %}">
+                            {{ facility.name }}
+                        </a>
+                    </td>
+
+                    <td><a href="{% url facility_usage org_id=org.id zone_id=zone.id id=id %}">(usage) </a> </td>
+                    <td><a href="{% url facility_mastery org_id=org.id zone_id=zone.id id=id %}">(mastery)</a> </td>
+                    
+                    <td><a href="{% url facility_data_download org_id=org.id zone_id=zone.id id=id %}">(download data) </a> </td>
+                    <td><a href="{% url facility_data_upload org_id=org.id zone_id=zone.id id=id %}">(upload data)</a> </td>
+                    
                     <td>{{ facility.num_users }}</td>
                     <td>{{ facility.num_groups }}</td>
                 </tr>
             {% endfor %}
 
         </table>
-        <br>
-            <form method="link" action="{% url facility_form org_id=org.id zone_id=zone.id id='new' %}">
-                <input class="add green_button" type="submit" value="Create a new facility">
-            </form>
-
         {% endif %}
+        <br/>
+        <form method="link" action="{% url facility_form org_id=org.id zone_id=zone.id id='new' %}">
+            <input class="add green_button" type="submit" value="Create a new facility">
+        </form>
     </div>
 
 {% endblock content %}

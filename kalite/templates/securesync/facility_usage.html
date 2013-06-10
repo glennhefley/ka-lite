@@ -1,0 +1,181 @@
+{% extends 'base_central.html' %}
+
+{% block management_active %}active{% endblock management_active %}
+
+{% block headcss %}
+	<style>
+
+	body {
+		min-height: 500px;
+	}
+
+	ul, li {
+	    list-style: none;
+        margin-left: 0px;
+	}
+
+    .facility, .device {
+        width:100%;
+    }
+
+    #zone_container{
+        width: 100%;
+    }
+    .titlebar__title {
+        padding: 10px 0px 28px 0px;
+        border-bottom: 1px #E7E7E7 solid;
+    }
+    .titlebar__title li{
+        display: inline;
+        font-size: 20px;
+        padding-top: 5px;
+    }
+
+    .titlebar__buttons{
+        float: right;
+        margin: 0;
+    }
+
+    .devices{
+        padding-top: 40px;
+    }
+    .facilities{
+        padding-top: 20px;
+    }
+
+    .facilities__header li{
+        display: inline;
+        padding-right: 10px;
+    }
+
+    .simple-table{
+        margin-top: 20px;
+        font-size: 13px;
+        width: 100%;
+        border: 1px #DFDFDF solid;
+    }
+
+    .simple-table th{
+        font-weight: bold;
+        text-align: left; 
+        padding: 8px 8px 8px 10px;
+        background-color: #E7E7E7;
+    }
+
+    .simple-table td{
+        padding: 10px;
+        border-bottom: 1px #DFDFDF solid;
+    }
+
+    .green_button{
+        -webkit-border-radius: 5px;
+        -moz-border-radius: 5px;
+        border-radius: 5px;
+        background-color: #91ca7f;
+        font-family: Arial, Helvetica, sans-serif;
+        font-size: 13px;
+        color: #ffffff;
+        padding: 10px 20px;
+        border:0px;
+        vertical-align: middle;
+    }
+
+    a.green_button, a.green_button:hover,input.green_button, input.green_button:hover {
+        color: white !important; 
+        text-decoration: none;
+    }
+    a.green_button:hover,input.green_button:hover{
+        background-color:#C0C0C0;
+    } 
+	</style>
+
+{% endblock headcss %}
+
+{% block content %}
+<div id="zone_container">
+
+    <div class="titlebar">
+        <ul class="titlebar__title">
+            <li><a href="{% url org_management %}"> {{ org.name }}</a></li>
+            <li>&gt; <a href="{% url zone_management org_id=org.id zone_id=zone.id %}">{{ zone.name }}</a></li>
+            <li>&gt; {{ facility.name }}</li>
+            <ul class="titlebar__buttons">
+                <li><a class="green_button" href="{% url facility_data_upload org_id=org.id zone_id=zone.id id=facility.id %}/">Upload data</a></li>
+                <li><a class="green_button" href="{% url facility_data_download org_id=org.id zone_id=zone.id id=facility.id %}/">Download data</a></li>
+            </ul>
+        </ul>
+    </div>
+    
+    
+    <div class="groups">
+        <h2>Groups</h2>
+
+        {% if not groups %}
+            <p>You currently have no data available</p>
+
+        {% else %}
+            <table class="simple-table">
+                <tr>
+                    <th width="250px">Group name</th>
+                    <th width="200px"># Students</th>
+                    <th width="100px">Total Logins</th>
+                    <th width="100px">Total Login Time</th>
+                    <th width="100px">Total Videos Viewed</th>
+                    <th width="100px">Total Exercises Completed</th>
+                    <th width="100px">Total Mastery</th>
+                    <th>Last Time Synced</th>
+                </tr>
+                {% for id,group in groups %}
+                    <tr>
+                        <td>{{ group.name }}</td>
+                        <td>{{ group.num_students }}</td>
+                        <td>{{ group.total_logins }}</td>
+                        <td>{{ group.total_hours }}</td>
+                        <td>{{ group.total_videos }}</td>
+                        <td>{{ group.total_exercises }}</td>
+                        <td>{{ group.total_mastery }}</td>
+                    </tr>
+
+                {% endfor %}
+            </table>
+        {% endif %}
+    </div>
+
+
+	<div class="users">
+        <h2>User Usage Reports</h2>
+        
+        {% if not users %}
+            <p>You currently have no data available</p>
+
+        {% else %}
+
+         <table class="simple-table">
+            <tr>
+                <tr>
+                    <th width="250px">User name</th>
+                    <th width="100px">Total Logins</th>
+                    <th width="100px">Total Login Time</th>
+                    <th width="100px">Total Videos Viewed</th>
+                    <th width="100px">Total Exercises Completed</th>
+                    <th width="100px">Total Mastery</th>
+                    <th>Last Time Synced</th>
+                </tr>
+                {% for id,user in users %}
+                    <tr>
+                        <td>{{ user.name }}</td>
+                        <td>{{ user.num_students }}</td>
+                        <td>{{ user.total_logins }}</td>
+                        <td>{{ user.total_hours }}</td>
+                        <td>{{ user.total_videos }}</td>
+                        <td>{{ user.total_exercises }}</td>
+                        <td>{{ user.total_mastery }}</td>
+                    </tr>
+
+            {% endfor %}
+
+        </table>
+        {% endif %}
+    </div>
+
+{% endblock content %}

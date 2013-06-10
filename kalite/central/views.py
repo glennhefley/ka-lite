@@ -15,17 +15,17 @@ from django.contrib import messages
 from django.template.loader import render_to_string
 from django.utils.translation import ugettext as _
 from django.template.loader import render_to_string
-from annoying.decorators import render_to
 
 import kalite
 import settings
 from central.models import Organization, OrganizationInvitation, DeletionRecord, get_or_create_user_profile, FeedListing, Subscription
 from central.forms import OrganizationForm, ZoneForm, OrganizationInvitationForm
 from securesync.api_client import SyncClient
-from securesync.models import Facility, FacilityUser, FacilityGroup, DeviceZone
+from securesync.models import Facility, FacilityUser, FacilityGroup, DeviceZone, Device
 from securesync.models import Zone, SyncSession, ZoneInstallCertificate
 from securesync.forms import FacilityForm
 from utils.packaging import package_offline_install_zip
+
 
 def get_request_var(request, var_name, default_val="__empty__"):
     return  request.POST.get(var_name, request.GET.get(var_name, default_val))
@@ -227,7 +227,8 @@ def download_kalite(request, args, argnames=None):
 @login_required
 @render_to("central/org_management.html")
 def org_management(request):
-    
+#    if not request.user.is_superuser:
+
     # show the static landing page to users that aren't logged in
     
     # get a list of all the organizations this user helps administer    
@@ -345,7 +346,7 @@ def organization_form(request, id=None):
             if old_org:
                 return HttpResponseRedirect(reverse("organization_management"))
             else:    
-                return HttpResponseRedirect(reverse("zone_form", kwargs={"id": "new", "org_id": form.instance.pk}) )
+                return HttpResponseRedirect(reverse("zone_form", kwargs={"zone_id": "new", "org_id": form.instance.pk}) )
     else:
         form = OrganizationForm(instance=org)
     return {
@@ -355,12 +356,12 @@ def organization_form(request, id=None):
 
 @login_required
 @render_to("central/zone_form.html")
-def zone_form(request, org_id=None, id=None):
+def zone_form(request, org_id=None, zone_id=None):
     org = get_object_or_404(Organization, pk=org_id)
     if not org.is_member(request.user):
         return HttpResponseForbidden("You do not have permissions for this organization.")
-    if id != "new":
-        zone = get_object_or_404(Zone, pk=id)
+    if zone_id != "new":
+        zone = get_object_or_404(Zone, pk=zone_id)
         if org.zones.filter(pk=zone.pk).count() == 0:
             return HttpResponseForbidden("This organization does not have permissions for this zone.")
     else:
@@ -379,16 +380,16 @@ def zone_form(request, org_id=None, id=None):
 
 @login_required
 @render_to("central/zone_management.html")
-def zone_management(request, org_id=None, id=None):
+def zone_management(request, org_id=None, zone_id=None):
 
     # Validate input
     org = get_object_or_404(Organization, pk=org_id)
-    if not org.is_member(request.user):
-        return HttpResponseNotAllowed("You do not have permissions for this organization.")
-    if id != "new":
-        zone = get_object_or_404(Zone, pk=id)
+    if not org.is_member(request.user) and not request.user.is_superuser:
+        return HttpResponseForbidden("You do not have permissions for this organization.")
+    if zone_id != "new":
+        zone = get_object_or_404(Zone, pk=zone_id)
         if org.zones.filter(pk=zone.pk).count() == 0:
-            return HttpResponseNotAllowed("This organization does not have permissions for this zone.")
+            return HttpResponseForbidden("This organization does not have permissions for this zone.")
     else:
         zone = None
 
@@ -404,17 +405,18 @@ def zone_management(request, org_id=None, id=None):
         }
     
     # Accumulate device data
-    devices = DeviceZone.objects.filter(zone=zone)
+    device_zones = DeviceZone.objects.filter(zone=zone)
     device_data = dict()
-    for device in devices:
-        num_times_synced = SyncSessions.objects.filter(client_device=device).count()
+    for device_zone in device_zones:
+        device = device_zone.device
+        num_times_synced = SyncSession.objects.filter(client_device=device).count()
         device_data[device.id] = { 
             "name": device.name, 
             "num_times_synced": num_times_synced,
-            "last_sync_time": None if num_times_synced == 0 else SyncSessions.objects.filter(client_device=device, ).order_by("-timestamp")[0],
+            "last_time_synced": None if num_times_synced == 0 else SyncSession.objects.filter(client_device=device, ).order_by("-timestamp")[0].timestamp,
         }
         
-    print facility_data
+    print facility_data, zone, org, device_data
     return { 
         "org": org,
         "zone": zone,
@@ -423,6 +425,8 @@ def zone_management(request, org_id=None, id=None):
     }   
 
 
+
+#TODO(bcipolli) I think this will be deleted on the central server side
 @login_required
 @render_to("securesync/facility_management.html")
 def facility_management(request, org_id=None, zone_id=None):
@@ -432,62 +436,73 @@ def facility_management(request, org_id=None, zone_id=None):
         "facilities": facilities,
     } 
 
+@login_required
+@render_to("securesync/facility_usage.html")
+def facility_usage(request, org_id, zone_id, id):
+
+    # Basic data
+    org = Organization.objects.get(id=org_id)
+    zone = Zone.objects.get(id=zone_id)
+    facility = Facility.objects.get(id=id)
+    groups = FacilityGroup.objects.filter(facility=facility)
+    users = FacilityUser.objects.filter(facility=facility)
+    
+    # Accumulating data
+    group_data = dict()
+    user_data = dict()
+    for user in users:
+        exercise_logs = ExerciseLog.objects.filter(user=user)
+        video_logs = VideoLog.objects.filter(user=user)
+        
+        user_data[user.pk] = {
+            "name": user.name,
+            "total_logins": "NYI",
+            "total_hours": "NYI",
+            "total_videos": len(video_logs),
+            "total_exercises": len(exercies_logs),
+            "total_mastery": "NYI",
+        }
+        
+        user_group = user.group
+        if not group.pk in group_data:
+            group_data[group.pk] = {
+                "name": group.name,
+                "total_logins": "NYI",
+                "total_hours": "NYI",
+                "total_videos": 0,
+                "total_exercises": 0,
+                "total_mastery": "NYI",
+            }
+        group_data[group.pk]["total_videos"] += user_data[user.pk]["total_videos"]
+        group_data[group.pk]["total_exercises"] += user_data[user.pk]["total_exercises"]
+    
+    return {
+        "org": org,
+        "zone": zone,
+        "facility": facility,
+        "groups": group_data,
+        "users": user_data,
+    } 
+
+
+@login_required
+@render_to("securesync/device_management.html")
+def device_management(request, org_id, zone_id, device_id):
+    org = Organization.objects.get(id=org_id)
+    zone = Zone.objects.get(id=zone_id)
+    device = Device.objects.get(id=device_id)
+    sync_sessions = SyncSession.objects.filter(client_device=device)
+    return {
+        "org": org,
+        "zone": zone,
+        "device": device,
+        "sync_sessions": sync_sessions,
+    } 
+
 
 @login_required
 @render_to("securesync/facility_form.html")
 def facility_form(request, org_id=None, zone_id=None, id=None):
-    org = get_object_or_404(Organization, pk=org_id)
-    if not org.is_member(request.user):
-        return HttpResponseNotAllowed("You do not have permissions for this organization.")
-    zone = org.zones.get(pk=zone_id)
-    if id != "new":
-        facil = get_object_or_404(Facility, pk=id)
-        if not facil.in_zone(zone):
-            return HttpResponseNotAllowed("This facility does not belong to this zone.")
-    else:
-        facil = None
-    if request.method == "POST":
-        form = FacilityForm(data=request.POST, instance=facil)
-        if form.is_valid():
-            form.instance.zone_fallback = get_object_or_404(Zone, pk=zone_id)
-            form.save()
-            return HttpResponseRedirect(reverse("facility_management", kwargs={"org_id": org_id, "zone_id": zone_id}))
-    else:
-        form = FacilityForm(instance=facil)
-    return {
-        "form": form,
-        "zone_id": zone_id,
-    }
-
-@login_required
-@render_to("securesync/facility_usage.html")
-def facility_usage(request, org_id=None, zone_id=None, id=None):
-    org = get_object_or_404(Organization, pk=org_id)
-    if not org.is_member(request.user):
-        return HttpResponseNotAllowed("You do not have permissions for this organization.")
-    zone = org.zones.get(pk=zone_id)
-    if id != "new":
-        facil = get_object_or_404(Facility, pk=id)
-        if not facil.in_zone(zone):
-            return HttpResponseNotAllowed("This facility does not belong to this zone.")
-    else:
-        facil = None
-    if request.method == "POST":
-        form = FacilityForm(data=request.POST, instance=facil)
-        if form.is_valid():
-            form.instance.zone_fallback = get_object_or_404(Zone, pk=zone_id)
-            form.save()
-            return HttpResponseRedirect(reverse("facility_management", kwargs={"org_id": org_id, "zone_id": zone_id}))
-    else:
-        form = FacilityForm(instance=facil)
-    return {
-        "form": form,
-        "zone_id": zone_id,
-    }
-
-@login_required
-@render_to("main/coach_reports.html")
-def facility_mastery(request, org_id=None, zone_id=None, id=None):
     org = get_object_or_404(Organization, pk=org_id)
     if not org.is_member(request.user):
         return HttpResponseForbidden("You do not have permissions for this organization.")
@@ -503,6 +518,8 @@ def facility_mastery(request, org_id=None, zone_id=None, id=None):
         if form.is_valid():
             form.instance.zone_fallback = get_object_or_404(Zone, pk=zone_id)
             form.save()
+            if not facil:
+                facil = None
             return HttpResponseRedirect(reverse("facility_management", kwargs={"org_id": org_id, "zone_id": zone_id}))
     else:
         form = FacilityForm(instance=facil)
@@ -511,6 +528,22 @@ def facility_mastery(request, org_id=None, zone_id=None, id=None):
         "zone_id": zone_id,
     }
 
+@login_required
+@render_to("main/coach_reports.html")
+def facility_mastery(request, org_id=None, zone_id=None, id=None):
+    raise NotImplementedError("facility mastery")
+
+    
+@login_required
+def facility_data_upload(request, org_id=None, zone_id=None, id=None):
+    raise NotImplementedError("facility mastery")
+
+    
+@login_required
+def facility_data_download(request, org_id=None, zone_id=None, id=None):
+    raise NotImplementedError("facility mastery")
+
+    
 @render_to("central/glossary.html")
 def glossary(request):
     return {}
@@ -538,4 +571,3 @@ def central_404_handler(request):
     
 def central_500_handler(request):
     return HttpResponseServerError(render_to_string("500_central.html", {}, context_instance=RequestContext(request)))
-
