@@ -42,7 +42,8 @@ urlpatterns += patterns('main.views',
     url(r'^userlist/$', 'user_list', {}, 'user_list'),
 
     # Zone, facility, device
-    url(r'^zone/$', 'zone_discovery', {}, 'zone_discovery'),
+    url(r'^zone/$', 'zone_discovery', {}, 'zone_discovery'), # only one zone, so make an easy way to access it
+    url(r'^device/$', 'device_discovery', {}, 'device_discovery'), # only one device, so make an easy way to access it
     url(r'^(?P<org_id>\s{0})', include(shared.urls)), # no org_id, but parameter needed for reverse url look-up
 
     url(r'^api/', include('main.api_urls')),

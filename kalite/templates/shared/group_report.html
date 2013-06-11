@@ -1,15 +1,13 @@
-{% extends base_template %}
+{% extends "shared/base_management.html" %}
 
 {% load staticfiles %}
-
 {% block title %}{{ group.name }} - Group Report{% endblock title %}
-{% block management_active %}active{% endblock management_active %}
-
-{% block headcss %}
-<link rel='stylesheet' type='text/css' href='{% static "css/coach_reports.css" %}'>
-{% endblock headcss %}
-
 
 {% block content %}
+<div id="group_container">
+
+{% include "shared/titlebar.html" %}
 {% include "coach_reports_body.html" %}
+
+</div>
 {% endblock content %}

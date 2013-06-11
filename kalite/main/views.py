@@ -19,7 +19,6 @@ from django.views.decorators.cache import cache_page
 import settings
 from utils.topics import slug_key, title_key
 from main import topicdata
-from securesync.views import require_admin, facility_required
 from config.models import Settings
 from securesync.models import Facility, FacilityUser,FacilityGroup, DeviceZone, Device
 from models import VideoLog, ExerciseLog, VideoFile
@@ -27,6 +26,7 @@ from config.models import Settings
 from securesync.api_client import SyncClient
 from utils import topic_tools
 from utils.jobs import force_job
+from utils.decorators import require_admin, facility_required
 
 def splat_handler(request, splat):
     slugs = filter(lambda x: x, splat.split("/"))
@@ -410,13 +410,17 @@ def user_list(request,facility):
         context["pageurls"] = {"next_page": next_page_url, "prev_page": previous_page_url}
     return context
 
+@require_admin
 def zone_discovery(request):
-    dz = DeviceZone.objects.filter(device=Device.get_own_device())
-    if len(dz) == 0:
-        return HttpResponseNotFound("no zone.")
-    
-    zone = dz[0].zone
-    return HttpResponseRedirect(reverse("zone_management", kwargs={"zone_id": zone.pk}))
+    device = Device.get_own_device()
+    zone = device.get_zone()
+    return HttpResponseRedirect(reverse("zone_management", kwargs={"org_id": "", "zone_id": zone.pk}))
+
+@require_admin
+def device_discovery(request):
+    device = Device.get_own_device()
+    zone = device.get_zone()
+    return HttpResponseRedirect(reverse("device_management", kwargs={"org_id": "", "zone_id": zone.pk, "device_id": device.pk}))
 
 
 def distributed_404_handler(request):

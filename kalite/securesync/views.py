@@ -23,7 +23,7 @@ from config.models import Settings
 from config.utils import set_as_registered
 from securesync.models import SyncSession, Device, RegisteredDevicePublicKey, Zone, Facility, FacilityGroup
 from securesync.api_client import SyncClient
-from kalite.utils.decorators import require_admin, central_server_only, distributed_server_only
+from kalite.utils.decorators import require_admin, central_server_only, distributed_server_only, facility_required, facility_from_request
 
 
 def register_public_key(request):
@@ -31,45 +31,7 @@ def register_public_key(request):
         return register_public_key_server(request)
     else:
         return register_public_key_client(request)
-
-
-def get_facility_from_request(request):
-    if "facility" in request.GET:
-        facility = get_object_or_None(Facility, pk=request.GET["facility"])
-        if "set_default" in request.GET and request.is_admin and facility:
-            Settings.set("default_facility", facility.id)
-    elif "facility_user" in request.session:
-        facility = request.session["facility_user"].facility
-    elif Facility.objects.count() == 1:
-        facility = Facility.objects.all()[0]
-    else:
-        facility = get_object_or_None(Facility, pk=Settings.get("default_facility"))
-    return facility
-
-
-def facility_required(handler):
-    def inner_fn(request, *args, **kwargs):
         
-        if Facility.objects.count() == 0:
-            if request.is_admin:
-                messages.error(request, _("To continue, you must first add a facility (e.g. for your school). ") \
-                    + _("Please use the form below to add a facility."))
-            else:
-                messages.error(request,
-                    _("You must first have the administrator of this server log in below to add a facility."))
-            return HttpResponseRedirect(reverse("add_facility"))
-        elif kwargs.get("facility_id",None):
-            facility = get_object_or_None(pk=facility_id)
-        else:
-            facility = get_facility_from_request(request)
-        
-        if facility:
-            return handler(request, facility, *args, **kwargs)
-        else:
-            return facility_selection(request)
-    
-    return inner_fn
-
 
 @require_admin
 @render_to("securesync/register_public_key_client.html")
@@ -267,10 +229,9 @@ def add_group(request, facility):
 
 @distributed_server_only
 @render_to("securesync/login.html")
-def login(request):
+@facility_from_request
+def login(request, facility):
     facilities = Facility.objects.all()
-    
-    facility = get_facility_from_request(request)
     facility_id = facility and facility.id or None
     
     if request.method == 'POST':

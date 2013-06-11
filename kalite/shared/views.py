@@ -26,25 +26,94 @@ from main.models import ExerciseLog, VideoLog
 from securesync.model_sync import save_serialized_models, get_serialized_models
 from securesync.forms import FacilityForm
 from utils.packaging import package_offline_install_zip
-from utils.decorators import authorized_login_required
+from utils.decorators import require_admin#authorized_login_required
 
 
+
+def authorized_login_required(handler):
+    if settings.CENTRAL_SERVER:
+        @login_required
+        def wrapper_fn(request, *args, **kwargs):
+            user = request.user
+            assert not user.is_anonymous(), "Wrapped by login_required!"
+
+            if user.is_superuser:
+                return handler(request, *args, **kwargs)
+        
+            org = None; org_id      = kwargs.get("org_id", None)
+            zone = None; zone_id     = kwargs.get("zone_id", None)
+            device = None; device_id   = kwargs.get("device_id", None)
+            facility = None; facility_id = kwargs.get("facility_id", None)
+        
+            # Validate device through zone
+            if device_id:
+                device = get_object_or_404(Device, pk=device_id)
+                if not zone_id:
+                    zone = device.get_zone()
+                    if not zone:
+                        return HttpResponseForbidden("Device, no zone, no DeviceZone")
+                    zone_id = zone.pk
+                
+            # Validate device through zone
+            if facility_id:
+                facility = get_object_or_404(Facility, pk=facility_id)
+                if not zone_id:
+                    zone = facility.get_zone()
+                    if not zone:
+                        return HttpResponseForbidden("Facility, no zone")
+                    zone_id = zone.pk
+                
+            # Validate zone through org
+            if zone_id:
+                zone = get_object_or_404(Zone, pk=zone_id)
+                if not org_id:
+                    orgs = Organization.from_zone(zone)
+                    if len(orgs) != 1:
+                        return HttpResponseForbidden("Zone, no org")
+                    org = orgs[0]
+                    org_id = org.pk
+
+            if org_id:
+                if org_id=="new":
+                    return HttpResponseForbidden("Org")
+                org = get_object_or_404(Organization, pk=org_id)
+                if not org.is_member(request.user):
+                    return HttpResponseForbidden("Org")
+                elif zone_id and zone and org.zones.filter(pk=zone.pk).count() == 0:
+                    return HttpResponseForbidden("This organization does not have permissions for this zone.")
+    
+            # Made it through, we're safe!
+            return handler(request, *args,**kwargs)
+
+    else:
+        @require_admin
+        def wrapper_fn(request, *args, **kwargs):
+            return handler(request, *args,**kwargs)
+
+    return wrapper_fn
+        
+        
 @authorized_login_required
 @render_to("shared/zone_form.html")
 def zone_form(request, zone_id, org_id=None):
-    org = get_object_or_404(Organization, pk=org_id) if org_id else None
+    org = get_object_or_None(Organization, pk=org_id) if org_id else None
     zone = get_object_or_404(Zone, pk=zone_id) if zone_id != "new" else None
 
     if request.method == "POST":
         form = ZoneForm(data=request.POST, instance=zone)
         if form.is_valid():
             form.instance.save()
-            org.zones.add(form.instance)
-            return HttpResponseRedirect(reverse("zone_management"))
+            if org:
+                org.zones.add(form.instance)
+            if zone_id == "new":
+                zone_id = form.instance.pk
+            return HttpResponseRedirect(reverse("zone_management", kwargs={ "org_id": org_id, "zone_id": zone_id }))
     else:
         form = ZoneForm(instance=zone)
     return {
-        "form": form
+        "org": org,
+        "zone": zone,
+        "form": form,
     }
 
 
@@ -191,10 +260,11 @@ def facility_usage(request, facility_id, org_id=None, zone_id=None):
 
 @authorized_login_required
 @render_to("shared/device_management.html")
-def device_management(request, org_id, zone_id, device_id):
-    org = Organization.objects.get(id=org_id)
-    zone = Zone.objects.get(id=zone_id)
-    device = Device.objects.get(id=device_id)
+def device_management(request, device_id, org_id=None, zone_id=None):
+    org = get_object_or_None(Organization, pk=org_id) if org_id else None
+    zone = get_object_or_None(Zone, pk=zone_id) if zone_id else None
+    device = get_object_or_404(Device, pk=device_id)
+
     sync_sessions = SyncSession.objects.filter(client_device=device)
     return {
         "org": org,
@@ -207,16 +277,10 @@ def device_management(request, org_id, zone_id, device_id):
 @authorized_login_required
 @render_to("shared/facility_form.html")
 def facility_form(request, facility_id, org_id=None, zone_id=None):
-    org = get_object_or_404(Organization, pk=org_id)
-#    if not org.is_member(request.user) and not request.user.is_superuser:
-#        return HttpResponseForbidden("You do not have permissions for this organization.")
-    zone = org.zones.get(pk=zone_id)
-    if id != "new":
-        facil = get_object_or_404(Facility, pk=facility_id)
-#    if not facil.in_zone(zone):
-#        return HttpResponseForbidden("This facility does not belong to this zone.")
-    else:
-        facil = None
+    org = get_object_or_None(Organization, pk=org_id) if org_id else None
+    zone = get_object_or_None(Zone, pk=zone_id) if zone_id else None
+    facil = get_object_or_404(Facility, pk=facility_id) if id != "new" else None
+
     if request.method == "POST":
         form = FacilityForm(data=request.POST, instance=facil)
         if form.is_valid():
@@ -229,8 +293,11 @@ def facility_form(request, facility_id, org_id=None, zone_id=None):
     else:
         form = FacilityForm(instance=facil)
     return {
+        "org": org,
+        "zone": zone,
+        "facility": facil,
         "form": form,
-        "zone_id": zone_id,
+#        "zone_id": zone_id,
     }
 
 @authorized_login_required
@@ -242,7 +309,7 @@ def facility_mastery(request, org_id, zone_id, facility_id):
 from main import topicdata
 @authorized_login_required
 @render_to("shared/group_report.html")
-def group_report(request, org_id, zone_id, facility_id, group_id=None):
+def group_report(request, facility_id, group_id, org_id=None, zone_id=None):
     facility = get_object_or_404(Facility, pk=facility_id)
     
     topics = topicdata.EXERCISE_TOPICS["topics"].values()

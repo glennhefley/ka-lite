@@ -187,5 +187,6 @@ if CACHE_TIME or CACHE_TIME is None: # None can mean infinite caching to some fu
         }
     })
 
+TEST_RUNNER = 'kalite.utils.testrunner.KALiteTestRunner'
 
 SESSION_ENGINE = getattr("local_settings", "SESSION_ENGINE", 'django.contrib.sessions.backends.cache')

@@ -1,7 +1,6 @@
-{% extends base_template %}
+{% extends "shared/base_management.html" %}
 
 {% load i18n %}
-
 {% block title %}{% trans "Select user facility" %}{% endblock title %}
 
 {% block headcss %}
@@ -31,8 +30,8 @@
 {% endblock headcss %}
 
 {% block content %}
-
 <div id="facility-list-container">
+        
     <h1>{% trans "Facilities" %}</h1>
     <div id="facility-list">
         {% if facilities %}

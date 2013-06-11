@@ -38,57 +38,40 @@ def distributed_server_only(handler):
     return wrapper_fn
     
 
-def authorized_login_required(handler):
-    @login_required
+
+def facility_from_request(handler):
     def wrapper_fn(request, *args, **kwargs):
-        user = request.user
-        assert not user.is_anonymous(), "Wrapped by login_required!"
-
-        if user.is_superuser:
-            return handler(request, *args, **kwargs)
-        
-        org = None; org_id      = kwargs.get("org_id", None)
-        zone = None; zone_id     = kwargs.get("zone_id", None)
-        device = None; device_id   = kwargs.get("device_id", None)
-        facility = None; facility_id = kwargs.get("facility_id", None)
-        
-        # Validate device through zone
-        if device_id:
-            device = get_object_or_404(Device, pk=device_id)
-            if not zone_id:
-                zone = device.get_zone()
-                if not zone:
-                    return HttpResponseForbidden("Device, no zone, no DeviceZone")
-                zone_id = zone.pk
-                
-        # Validate device through zone
-        if facility_id:
-            facility = get_object_or_404(Facility, pk=facility_id)
-            if not zone_id:
-                zone = facility.get_zone()
-                if not zone:
-                    return HttpResponseForbidden("Facility, no zone")
-                zone_id = zone.pk
-                
-        # Validate zone through org
-        if zone_id:
-            zone = get_object_or_404(Zone, pk=zone_id)
-            if not org_id:
-                orgs = Organization.from_zone(zone)
-                if len(orgs) != 1:
-                    return HttpResponseForbidden("Zone, no org")
-                org = orgs[0]
-                org_id = org.pk
-
-        if org_id:
-            if org_id=="new":
-                return HttpResponseForbidden("Org")
-            org = get_object_or_404(Organization, pk=org_id)
-            if not org.is_member(request.user):
-                return HttpResponseForbidden("Org")
-            elif zone_id and zone and org.zones.filter(pk=zone.pk).count() == 0:
-                return HttpResponseForbidden("This organization does not have permissions for this zone.")
-    
-        # Made it through, we're safe!
-        return handler(request, *args,**kwargs)
+        if kwargs.get("facility_id",None):
+            facility = get_object_or_None(pk=facility_id)
+        elif "facility" in request.GET:
+            facility = get_object_or_None(Facility, pk=request.GET["facility"])
+            if "set_default" in request.GET and request.is_admin and facility:
+                Settings.set("default_facility", facility.id)
+        elif "facility_user" in request.session:
+            facility = request.session["facility_user"].facility
+        elif Facility.objects.count() == 1:
+            facility = Facility.objects.all()[0]
+        else:
+            facility = get_object_or_None(Facility, pk=Settings.get("default_facility"))
+        return handler(request, *args, facility=facility, **kwargs)
     return wrapper_fn
+
+
+def facility_required(handler):
+    @facility_from_request
+    def inner_fn(request, facility, *args, **kwargs):
+        if facility:
+            return handler(request, facility, *args, **kwargs)
+
+        if Facility.objects.count() == 0:
+            if request.is_admin:
+                messages.error(request, _("To continue, you must first add a facility (e.g. for your school). ") \
+                    + _("Please use the form below to add a facility."))
+            else:
+                messages.error(request,
+                    _("You must first have the administrator of this server log in below to add a facility."))
+            return HttpResponseRedirect(reverse("add_facility"))
+        else:
+            return facility_selection(request)
+    
+    return inner_fn
