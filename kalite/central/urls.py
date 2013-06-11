@@ -42,7 +42,7 @@ urlpatterns += patterns('central.views',
 
     # Organization
     url(r'^organization/$', 'org_management', {}, 'org_management'),
-    url(r'^organization/(?P<id>\w+)/$', 'organization_form', {}, 'organization_form'),
+    url(r'^organization/(?P<org_id>\w+)/$', 'organization_form', {}, 'organization_form'),
     url(r'^organization/invite_action/(?P<invite_id>\w+)/$', 'org_invite_action', {}, 'org_invite_action'),
 
     # Zone
@@ -58,9 +58,13 @@ urlpatterns += patterns('central.views',
 
     # Facility
     url(r'^organization/(?P<org_id>\w+)/zone/(?P<zone_id>\w+)/facility/$', 'facility_management', {}, 'facility_management'),
-    url(r'^organization/(?P<org_id>\w+)/zone/(?P<zone_id>\w+)/facility/(?P<id>\w+)/edit$', 'facility_form', {}, 'facility_form'),
-    url(r'^organization/(?P<org_id>\w+)/zone/(?P<zone_id>\w+)/facility/(?P<id>\w+)/mastery/$', 'facility_mastery', {}, 'facility_mastery'),
-    url(r'^organization/(?P<org_id>\w+)/zone/(?P<zone_id>\w+)/facility/(?P<id>\w+)/usage/$', 'facility_usage', {}, 'facility_usage'),
+    url(r'^organization/(?P<org_id>\w+)/zone/(?P<zone_id>\w+)/facility/(?P<facility_id>\w+)/edit$', 'facility_form', {}, 'facility_form'),
+    url(r'^organization/(?P<org_id>\w+)/zone/(?P<zone_id>\w+)/facility/(?P<facility_id>\w+)/mastery/$', 'facility_mastery', {}, 'facility_mastery'),
+    url(r'^organization/(?P<org_id>\w+)/zone/(?P<zone_id>\w+)/facility/(?P<facility_id>\w+)/usage/$', 'facility_usage', {}, 'facility_usage'),
+
+    # Group
+    url(r'^organization/(?P<org_id>\w+)/zone/(?P<zone_id>\w+)/facility/(?P<facility_id>\w+)/group/(?P<group_id>\w+)$', 'group_report', {}, 'group_report'),
+
 
     url(r'^cryptologin/$', 'crypto_login', {}, 'crypto_login'), 
 #    url(r'^getstarted/$','get_started', {}, 'get_started'),

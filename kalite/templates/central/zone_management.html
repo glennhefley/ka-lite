@@ -15,7 +15,7 @@
             <li><a href="{% url org_management %}"> {{ org.name }}</a></li>
             <li>
                 &gt; {{ zone.name }}
-                <a href="{% url zone_form org_id=org.id zone_id=zone.id %}">(edit)</a>
+                <a class="edit-link" href="{% url zone_form org_id=org.id zone_id=zone.id %}">(edit)</a>
             </li>
             <ul class="titlebar__buttons">
                 <li>
@@ -55,13 +55,13 @@
             {% for id,facility in facilities.items %}
                 <tr>
                     <td>
-                        <a href="{% url facility_usage org_id=org.id zone_id=zone.id id=id %}">
+                        <a href="{% url facility_usage org_id=org.id zone_id=zone.id facility_id=id %}">
                             {{ facility.name }}
                         </a>
                     </td>
 
-                    <td>[<a href="{% url facility_usage org_id=org.id zone_id=zone.id id=id %}">usage report</a>] </td>
-                    <td>[<a href="{% url facility_mastery org_id=org.id zone_id=zone.id id=id %}">mastery report</a>] </td>
+                    <td>[<a href="{% url facility_usage org_id=org.id zone_id=zone.id facility_id=id %}">usage report</a>] </td>
+                    <td>[<a href="{% url facility_mastery org_id=org.id zone_id=zone.id facility_id=id %}">mastery report</a>] </td>
                                         
                     <td>{{ facility.num_users }}</td>
                     <td>{{ facility.num_groups }}</td>

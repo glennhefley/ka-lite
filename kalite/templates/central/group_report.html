@@ -1,15 +1,14 @@
-{% extends 'base_distributed.html' %}
+{% extends 'base_central.html' %}
 
-{% load i18n %}
 {% load staticfiles %}
 
-{% block coachreports_active %}active{% endblock coachreports_active %}
+{% block title %}{{ group.name }} - Group Report{% endblock title %}
+{% block management_active %}active{% endblock management_active %}
 
 {% block headcss %}
 <link rel='stylesheet' type='text/css' href='{% static "css/coach_reports.css" %}'>
 {% endblock headcss %}
 
-{% block title %}Coach Reports{% endblock title %}
 
 {% block content %}
 {% include "coach_reports_body.html" %}

@@ -81,3 +81,6 @@ a.green_button, a.green_button:hover,input.green_button, input.green_button:hove
 a.green_button:hover,input.green_button:hover{
     background-color:#C0C0C0;
 } 
+a.edit-link {
+    font-size:11pt;
+}

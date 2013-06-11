@@ -1,3 +1,5 @@
+from django.http import HttpResponse, HttpResponseNotFound, HttpResponseRedirect, HttpResponseForbidden, HttpResponseServerError
+from django.shortcuts import render_to_response, get_object_or_404, redirect, get_list_or_404
 from django.contrib import messages
 from django.core.urlresolvers import reverse
 from django.http import HttpResponseRedirect, HttpResponseNotFound
@@ -6,7 +8,8 @@ from django.contrib.auth.decorators import login_required
 from django.utils.translation import ugettext as _
 
 import settings
-
+from securesync.models import Device, DeviceZone, Zone, Facility
+from central.models import Organization
 
 def require_admin(handler):
     def wrapper_fn(request, *args, **kwargs):
@@ -35,8 +38,57 @@ def distributed_server_only(handler):
     return wrapper_fn
     
 
-#@login_required
 def authorized_login_required(handler):
-    def wrapper_fn(*args, **kwargs):
-        return handler(*args,**kwargs)
+    @login_required
+    def wrapper_fn(request, *args, **kwargs):
+        user = request.user
+        assert not user.is_anonymous(), "Wrapped by login_required!"
+
+        if user.is_superuser:
+            return handler(request, *args, **kwargs)
+        
+        org = None; org_id      = kwargs.get("org_id", None)
+        zone = None; zone_id     = kwargs.get("zone_id", None)
+        device = None; device_id   = kwargs.get("device_id", None)
+        facility = None; facility_id = kwargs.get("facility_id", None)
+        
+        # Validate device through zone
+        if device_id:
+            device = get_object_or_404(Device, pk=device_id)
+            if not zone_id:
+                zone = device.get_zone()
+                if not zone:
+                    return HttpResponseForbidden("Device, no zone, no DeviceZone")
+                zone_id = zone.pk
+                
+        # Validate device through zone
+        if facility_id:
+            facility = get_object_or_404(Facility, pk=facility_id)
+            if not zone_id:
+                zone = facility.get_zone()
+                if not zone:
+                    return HttpResponseForbidden("Facility, no zone")
+                zone_id = zone.pk
+                
+        # Validate zone through org
+        if zone_id:
+            zone = get_object_or_404(Zone, pk=zone_id)
+            if not org_id:
+                orgs = Organization.from_zone(zone)
+                if len(orgs) != 1:
+                    return HttpResponseForbidden("Zone, no org")
+                org = orgs[0]
+                org_id = org.pk
+
+        if org_id:
+            if org_id=="new":
+                return HttpResponseForbidden("Org")
+            org = get_object_or_404(Organization, pk=org_id)
+            if not org.is_member(request.user):
+                return HttpResponseForbidden("Org")
+            elif zone_id and zone and org.zones.filter(pk=zone.pk).count() == 0:
+                return HttpResponseForbidden("This organization does not have permissions for this zone.")
+    
+        # Made it through, we're safe!
+        return handler(request, *args,**kwargs)
     return wrapper_fn

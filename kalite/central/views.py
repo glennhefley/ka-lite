@@ -35,6 +35,16 @@ def get_request_var(request, var_name, default_val="__empty__"):
     return  request.POST.get(var_name, request.GET.get(var_name, default_val))
 
 
+
+
+@render_to("central/landing_page.html")
+def landing_page(request):
+    feed = FeedListing.objects.order_by('-posted_date')[:5]
+    return {"feed": feed,
+            "central_contact_email": settings.CENTRAL_CONTACT_EMAIL,
+            "wiki_url": settings.CENTRAL_WIKI_URL}
+
+
 @render_to("central/install_wizard.html")
 def install_wizard(request):
 
@@ -148,8 +158,8 @@ def download_kalite(request, args, argnames=None):
 @login_required
 @render_to("central/org_management.html")
 def org_management(request):
-#    if not request.user.is_superuser:
-
+    """Management of all organizations for the given user"""
+    
     # show the static landing page to users that aren't logged in
     
     # get a list of all the organizations this user helps administer    
@@ -182,14 +192,6 @@ def org_management(request):
     }
 
 
-@render_to("central/landing_page.html")
-def landing_page(request):
-    feed = FeedListing.objects.order_by('-posted_date')[:5]
-    return {"feed": feed,
-            "central_contact_email": settings.CENTRAL_CONTACT_EMAIL,
-            "wiki_url": settings.CENTRAL_WIKI_URL}
-
-
 @csrf_exempt # because we want the front page to cache properly
 def add_subscription(request):
     if request.method == "POST":
@@ -216,12 +218,12 @@ def org_invite_action(request, invite_id):
     return HttpResponseRedirect(reverse("org_management"))
 
 
-@login_required
+@authorized_login_required
 def delete_admin(request, org_id, user_id):
     org = Organization.objects.get(pk=org_id)
     admin = org.users.get(pk=user_id)
-    if not org.is_member(request.user):
-        return HttpResponseForbidden("Nice try, but you have to be an admin for an org to delete someone from it.")
+#    if not org.is_member(request.user):
+#        return HttpResponseForbidden("Nice try, but you have to be an admin for an org to delete someone from it.")
     if org.owner == admin:
         return HttpResponseForbidden("The owner of an organization cannot be removed.")
     if request.user == admin:
@@ -234,11 +236,11 @@ def delete_admin(request, org_id, user_id):
     return HttpResponseRedirect(reverse("org_management"))
 
 
-@login_required
+@authorized_login_required
 def delete_invite(request, org_id, invite_id):
     org = Organization.objects.get(pk=org_id)
-    if not org.is_member(request.user):
-        return HttpResponseForbidden("Nice try, but you have to be an admin for an org to delete its invitations.")
+#    if not org.is_member(request.user):
+#        return HttpResponseForbidden("Nice try, but you have to be an admin for an org to delete its invitations.")
     invite = OrganizationInvitation.objects.get(pk=invite_id)
     deletion = DeletionRecord(organization=org, deleter=request.user, deleted_invite=invite)
     deletion.save()
@@ -247,13 +249,13 @@ def delete_invite(request, org_id, invite_id):
     return HttpResponseRedirect(reverse("org_management"))
 
  
-@login_required
+@authorized_login_required
 @render_to("central/organization_form.html")
-def organization_form(request, id=None):
+def organization_form(request, org_id):
     if id != "new":
-        org = get_object_or_404(Organization, pk=id)
-        if not org.is_member(request.user) and not request.user.is_superuser:
-            return HttpResponseForbidden("You do not have permissions for this organization.")
+        org = get_object_or_404(Organization, pk=org_id)
+#        if not org.is_member(request.user) and not request.user.is_superuser:
+#            return HttpResponseForbidden("You do not have permissions for this organization.")
     else:
         org = None
     if request.method == 'POST':
@@ -277,14 +279,14 @@ def organization_form(request, id=None):
 
 @authorized_login_required
 @render_to("central/zone_form.html")
-def zone_form(request, org_id=None, zone_id=None):
+def zone_form(request, zone_id, org_id=None):
     org = get_object_or_404(Organization, pk=org_id)
-    if not org.is_member(request.user) and not request.user.is_superuser:
-        return HttpResponseForbidden("You do not have permissions for this organization.")
+#    if not org.is_member(request.user) and not request.user.is_superuser:
+#        return HttpResponseForbidden("You do not have permissions for this organization.")
     if zone_id != "new":
         zone = get_object_or_404(Zone, pk=zone_id)
-        if org.zones.filter(pk=zone.pk).count() == 0:
-            return HttpResponseForbidden("This organization does not have permissions for this zone.")
+#        if org.zones.filter(pk=zone.pk).count() == 0:
+#            return HttpResponseForbidden("This organization does not have permissions for this zone.")
     else:
         zone = None
     if request.method == "POST":
@@ -302,7 +304,7 @@ def zone_form(request, org_id=None, zone_id=None):
 
 
 @authorized_login_required
-def zone_data_upload(request, org_id, zone_id):
+def zone_data_upload(request, zone_id, org_id=None):
     #import pdb; pdb.set_trace()
     if request.method != 'POST':
         return HttpResponseForbidden()
@@ -318,7 +320,7 @@ def zone_data_upload(request, org_id, zone_id):
 
     
 @authorized_login_required
-def zone_data_download(request, org_id, zone_id):
+def zone_data_download(request, zone_id, org_id=None):
     zone = Zone.objects.get(id=zone_id)
 
     device_counters = dict()
@@ -337,28 +339,26 @@ def zone_data_download(request, org_id, zone_id):
     return response
 
 
-@login_required
+@authorized_login_required
 @render_to("central/zone_management.html")
-def zone_management(request, org_id=None, zone_id=None):
+def zone_management(request, zone_id, org_id=None):
 
     # Validate input
     org = get_object_or_404(Organization, pk=org_id)
-    if not org.is_member(request.user) and not request.user.is_superuser:
-        return HttpResponseForbidden("You do not have permissions for this organization.")
+#    if not org.is_member(request.user) and not request.user.is_superuser:
+#        return HttpResponseForbidden("You do not have permissions for this organization.")
     if zone_id != "new":
         zone = get_object_or_404(Zone, pk=zone_id)
-        if org.zones.filter(pk=zone.pk).count() == 0:
-            return HttpResponseForbidden("This organization does not have permissions for this zone.")
+#        if org.zones.filter(pk=zone.pk).count() == 0:
+#            return HttpResponseForbidden("This organization does not have permissions for this zone.")
     else:
         zone = None
 
     # Accumulate device data
-    facilities = set([])
     device_zones = DeviceZone.objects.filter(zone=zone)
     device_data = dict()
     for device_zone in device_zones:
         device = device_zone.device
-        facilities = facilities.union(set(Facility.objects.filter(signed_by=device)))
         num_times_synced = SyncSession.objects.filter(client_device=device).count()
         device_data[device.id] = { 
             "name": device.name, 
@@ -367,9 +367,8 @@ def zone_management(request, org_id=None, zone_id=None):
         }
     
     # Accumulate facility data
-    facilities = facilities.union(set(Facility.objects.filter(zone_fallback=zone)))
     facility_data = dict()
-    for facility in facilities:
+    for facility in Facility.from_zone(zone):
         facility_data[facility.id] = { 
             "name": facility.name,
             "num_users":  FacilityUser.objects.filter(facility=facility).count(),
@@ -390,23 +389,23 @@ def zone_management(request, org_id=None, zone_id=None):
 
 
 #TODO(bcipolli) I think this will be deleted on the central server side
-@login_required
+@authorized_login_required
 @render_to("securesync/facility_management.html")
-def facility_management(request, org_id=None, zone_id=None):
+def facility_management(request, zone_id, org_id=None):
     facilities = Facility.objects.by_zone(zone_id)
     return {
         "zone_id": zone_id,
         "facilities": facilities,
     } 
 
-@login_required
+@authorized_login_required
 @render_to("securesync/facility_usage.html")
-def facility_usage(request, org_id, zone_id, id):
+def facility_usage(request, org_id, zone_id, facility_id):
 
     # Basic data
     org = Organization.objects.get(id=org_id)
     zone = Zone.objects.get(id=zone_id)
-    facility = Facility.objects.get(id=id)
+    facility = Facility.objects.get(id=facility_id)
     groups = FacilityGroup.objects.filter(facility=facility).order_by("name")
     users = FacilityUser.objects.filter(facility=facility).order_by("last_name")
     
@@ -436,10 +435,12 @@ def facility_usage(request, org_id, zone_id, id):
                 "name": group.name,
                 "total_logins": "NYI",
                 "total_hours": "NYI",
+                "total_users": 0,
                 "total_videos": 0,
                 "total_exercises": 0,
                 "total_mastery": "NYI",
             }
+        group_data[group.pk]["total_users"] += 1
         group_data[group.pk]["total_videos"] += user_data[user.pk]["total_videos"]
         group_data[group.pk]["total_exercises"] += user_data[user.pk]["total_exercises"]
     
@@ -452,7 +453,7 @@ def facility_usage(request, org_id, zone_id, id):
     } 
 
 
-@login_required
+@authorized_login_required
 @render_to("securesync/device_management.html")
 def device_management(request, org_id, zone_id, device_id):
     org = Organization.objects.get(id=org_id)
@@ -467,17 +468,17 @@ def device_management(request, org_id, zone_id, device_id):
     } 
 
 
-@login_required
+@authorized_login_required
 @render_to("securesync/facility_form.html")
-def facility_form(request, org_id=None, zone_id=None, id=None):
+def facility_form(request, facility_id, org_id=None, zone_id=None):
     org = get_object_or_404(Organization, pk=org_id)
-    if not org.is_member(request.user) and not request.user.is_superuser:
-        return HttpResponseForbidden("You do not have permissions for this organization.")
+#    if not org.is_member(request.user) and not request.user.is_superuser:
+#        return HttpResponseForbidden("You do not have permissions for this organization.")
     zone = org.zones.get(pk=zone_id)
     if id != "new":
-        facil = get_object_or_404(Facility, pk=id)
-        if not facil.in_zone(zone):
-            return HttpResponseForbidden("This facility does not belong to this zone.")
+        facil = get_object_or_404(Facility, pk=facility_id)
+#    if not facil.in_zone(zone):
+#        return HttpResponseForbidden("This facility does not belong to this zone.")
     else:
         facil = None
     if request.method == "POST":
@@ -487,7 +488,8 @@ def facility_form(request, org_id=None, zone_id=None, id=None):
             form.save()
             if not facil:
                 facil = None
-            return HttpResponseRedirect(reverse("facility_management", kwargs={"org_id": org_id, "zone_id": zone_id}))
+#            return HttpResponseRedirect(reverse("facility_usage", kwargs={"org_id": org_id, "zone_id": zone_id, "facility_id": facility_id}))
+            return HttpResponseRedirect(reverse("zone_management", kwargs={"org_id": org_id, "zone_id": zone_id}))
     else:
         form = FacilityForm(instance=facil)
     return {
@@ -495,13 +497,53 @@ def facility_form(request, org_id=None, zone_id=None, id=None):
         "zone_id": zone_id,
     }
 
-@login_required
+@authorized_login_required
 @render_to("main/coach_reports.html")
-def facility_mastery(request, org_id, zone_id, id):
+def facility_mastery(request, org_id, zone_id, facility_id):
     raise NotImplementedError()
 
+
+from main import topicdata
+@authorized_login_required
+@render_to("central/group_report.html")
+def group_report(request, org_id, zone_id, facility_id, group_id=None):
+    facility = get_object_or_404(Facility, pk=facility_id)
     
-@login_required
+    topics = topicdata.EXERCISE_TOPICS["topics"].values()
+    topics = sorted(topics, key = lambda k: (k["y"], k["x"]))
+    groups = FacilityGroup.objects.filter(facility=facility)
+    paths = dict((key, val["path"]) for key, val in topicdata.NODE_CACHE["Exercise"].items())
+    context = {
+        "facility": facility,
+        "groups": groups,
+        "group_id": group_id,
+        "topics": topics,
+        "exercise_paths": json.dumps(paths),
+    }
+
+    context["topic_id"] = request.GET.get("topic", "")
+    context["group_id"] = group_id or request.GET.get("group", "")
+    
+    if context["group_id"] and context["topic_id"] and re.match("^[\w\-]+$", context["topic_id"]):
+        exercises = json.loads(open("%stopicdata/%s.json" % (settings.DATA_PATH, context["topic_id"])).read())
+        exercises = sorted(exercises, key=lambda e: (e["h_position"], e["v_position"]))
+        context["exercises"] = [{
+            "display_name": ex["display_name"],
+            "description": ex["description"],
+            "short_display_name": ex["short_display_name"],
+            "path": topicdata.NODE_CACHE["Exercise"][ex["name"]]["path"],
+        } for ex in exercises]
+        users = get_object_or_404(FacilityGroup, pk=context["group_id"]).facilityuser_set.order_by("first_name", "last_name")
+        context["students"] = [{
+            "first_name": user.first_name,
+            "last_name": user.last_name,
+            "username": user.username,
+            "exercise_logs": [get_object_or_None(ExerciseLog, user=user, exercise_id=ex["name"]) for ex in exercises],
+        } for user in users]
+    return context
+    
+#@post_only
+@authorized_login_required
 def device_data_upload(request, org_id, zone_id, device_id):
     if request.method != 'POST':
         return HttpResponseForbidden()
@@ -517,19 +559,18 @@ def device_data_upload(request, org_id, zone_id, device_id):
     return HttpResponseRedirect(reverse("zone_management", kwargs={"org_id": org_id, "zone_id": zone_id}))
 
     
-@login_required
-def device_data_download(request, org_id, zone_id, id):
-    zone = Zone.objects.get(id=zone_id)
-    device_counters = dict()
-    for dz in DeviceZone.objects.filter(zone=zone):
-        device = dz.device
-        device_counters[device.id] = 0
+@authorized_login_required
+def device_data_download(request, org_id, zone_id, device_id):
+    device = get_object_or_404(Device, pk=device_id)
+    zone = get_object_or_None(Zone, pk=zone_id)
+    
+    device_counters = { device.id: 0 } # get everything
 
     # Get the data
     serialized_models = get_serialized_models(device_counters=device_counters, limit=100000000, zone=zone, include_count=True, client_version=kalite.VERSION)
 
     # Stream the data back to the user."
-    user_facing_filename = "data-zone-%s-date-%s-v%s.json" % (zone.name, str(datetime.datetime.now()), kalite.VERSION)
+    user_facing_filename = "data-device-%s-date-%s-v%s.json" % (device.name, str(datetime.datetime.now()), kalite.VERSION)
     user_facing_filename = user_facing_filename.replace(" ","_").replace("%","_")
     response = HttpResponse(content=serialized_models['models'], mimetype='text/json', content_type='text/json')
     response['Content-Disposition'] = 'attachment; filename="%s"' % user_facing_filename

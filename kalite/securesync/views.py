@@ -58,6 +58,8 @@ def facility_required(handler):
                 messages.error(request,
                     _("You must first have the administrator of this server log in below to add a facility."))
             return HttpResponseRedirect(reverse("add_facility"))
+        elif kwargs.get("facility_id",None):
+            facility = get_object_or_None(pk=facility_id)
         else:
             facility = get_facility_from_request(request)
         

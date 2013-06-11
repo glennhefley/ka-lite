@@ -164,7 +164,7 @@
 									{{ org.name }}
 								</h2>
 								{% if org.name != "Headless Zones" %}
-								<a href="{% url organization_form id=org.id %}">
+								<a href="{% url organization_form org_id=org.id %}">
 									(Edit)
 								</a>
 								{% endif %}

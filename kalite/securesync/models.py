@@ -455,6 +455,19 @@ class Facility(SyncedModel):
     class Meta:    
         verbose_name_plural = "Facilities"
 
+    @classmethod
+    def from_zone(cls, zone):
+        """Our best approximation of how to map facilities to zones"""
+
+        facilities = set(Facility.objects.filter(zone_fallback=zone))
+
+        for device_zone in DeviceZone.objects.filter(zone=zone):
+            device = device_zone.device
+            facilities = facilities.union(set(Facility.objects.filter(signed_by=device)))
+
+        return facilities
+        
+        
     def __unicode__(self):
         if not self.id:
             return self.name

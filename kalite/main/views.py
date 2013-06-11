@@ -343,10 +343,12 @@ def coach_reports(request, facility):
         "topics": topics,
         "exercise_paths": json.dumps(paths),
     }
-    topic = request.GET.get("topic", "")
-    group = request.GET.get("group", "")
-    if group and topic and re.match("^[\w\-]+$", topic):
-        exercises = json.loads(open("%stopicdata/%s.json" % (settings.DATA_PATH, topic)).read())
+
+    context["topic_id"] = request.GET.get("topic", "")
+    context["group_id"] = group_id or request.GET.get("group", "")
+    
+    if context["group_id"] and context["topic_id"] and re.match("^[\w\-]+$", context["topic_id"]):
+        exercises = json.loads(open("%stopicdata/%s.json" % (settings.DATA_PATH, context["topic_id"])).read())
         exercises = sorted(exercises, key=lambda e: (e["h_position"], e["v_position"]))
         context["exercises"] = [{
             "display_name": ex["display_name"],
@@ -354,7 +356,7 @@ def coach_reports(request, facility):
             "short_display_name": ex["short_display_name"],
             "path": topicdata.NODE_CACHE["Exercise"][ex["name"]]["path"],
         } for ex in exercises]
-        users = get_object_or_404(FacilityGroup, pk=group).facilityuser_set.order_by("first_name", "last_name")
+        users = get_object_or_404(FacilityGroup, pk=context["group_id"]).facilityuser_set.order_by("first_name", "last_name")
         context["students"] = [{
             "first_name": user.first_name,
             "last_name": user.last_name,
