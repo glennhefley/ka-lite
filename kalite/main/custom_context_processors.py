@@ -6,7 +6,6 @@ def custom(request):
     return {
         "base_template": "base_distributed.html",
         "central_server_host": settings.CENTRAL_SERVER_HOST,
-        "is_central": settings.CENTRAL_SERVER,
         "CONTENT_ROOT": settings.CONTENT_ROOT,
         "CONTENT_URL": settings.CONTENT_URL,
         "DATA_PATH": settings.DATA_PATH,
