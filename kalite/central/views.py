@@ -17,6 +17,7 @@ from django.template.loader import render_to_string
 from django.utils.translation import ugettext as _
 from django.template.loader import render_to_string
 
+
 import kalite
 import settings
 from central.models import Organization, OrganizationInvitation, DeletionRecord, get_or_create_user_profile, FeedListing, Subscription
@@ -24,7 +25,6 @@ from central.forms import OrganizationForm, ZoneForm, OrganizationInvitationForm
 from securesync.api_client import SyncClient
 from securesync.models import Facility, FacilityUser, FacilityGroup, DeviceZone, Device
 from securesync.models import Zone, SyncSession, ZoneInstallCertificate
-from main.models import ExerciseLog, VideoLog
 from securesync.model_sync import save_serialized_models, get_serialized_models
 from securesync.forms import FacilityForm
 from utils.packaging import package_offline_install_zip
@@ -302,7 +302,7 @@ def crypto_login(request):
 
 
 def central_404_handler(request):
-    return HttpResponseNotFound(render_to_string("404_central.html", {}, context_instance=RequestContext(request)))
+    return HttpResponseNotFound(render_to_string("central/404_central.html", {}, context_instance=RequestContext(request)))
     
 def central_500_handler(request):
-    return HttpResponseServerError(render_to_string("500_central.html", {}, context_instance=RequestContext(request)))
+    return HttpResponseServerError(render_to_string("central/500_central.html", {}, context_instance=RequestContext(request)))

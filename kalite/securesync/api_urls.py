@@ -9,5 +9,4 @@ urlpatterns = patterns('securesync.api_views',
     url(r'^device/download$', 'device_download', {}, 'device_download'),
     url(r'^models/download$', 'model_download', {}, 'model_download'),
     url(r'^models/upload$', 'model_upload', {}, 'model_upload'),
-    url(r'^status$', 'status', {}, 'status'),
 )

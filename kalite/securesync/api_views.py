@@ -15,9 +15,7 @@ import crypto
 import settings
 import model_sync
 from models import *
-from main.models import VideoLog, ExerciseLog
 from config.models import Settings
-from main.models import VideoLog, ExerciseLog
 
 
 class JsonResponse(HttpResponse):
@@ -289,21 +287,3 @@ def model_download(data, session):
 @csrf_exempt
 def test_connection(request):
     return HttpResponse("OK")
-
-def status(request):
-    data = {
-        "is_logged_in": request.is_logged_in,
-        "registered": bool(Settings.get("registered")),
-        "is_admin": request.is_admin,
-        "is_django_user": request.is_django_user,
-        "points": 0,
-    }
-    if "facility_user" in request.session:
-        user = request.session["facility_user"]
-        data["is_logged_in"] = True
-        data["username"] = user.get_name()
-        data["points"] = VideoLog.get_points_for_user(user) + ExerciseLog.get_points_for_user(user)
-    if request.user.is_authenticated():
-        data["is_logged_in"] = True
-        data["username"] = request.user.username
-    return JsonResponse(data)
