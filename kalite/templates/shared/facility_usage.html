@@ -1,4 +1,4 @@
-{% extends 'base_central.html' %}
+{% extends base_template %}
 
 {% block title %}{{ facility.name }} - Facility Usage{% endblock title %}
 {% block management_active %}active{% endblock management_active %}
@@ -12,9 +12,13 @@
 
     <div class="titlebar">
         <ul class="titlebar__title">
+            {% if org %}
             <li><a href="{% url org_management %}"> {{ org.name }}</a></li>
-            <li>&gt; <a href="{% url zone_management org_id=org.id zone_id=zone.id %}">{{ zone.name }}</a></li>
-            <li>&gt; {{ facility.name }}
+            {% endif %}
+            {% if zone %}
+            <li>{% if org %}&gt; {% endif %}<a href="{% url zone_management org_id=org.id zone_id=zone.id %}">{{ zone.name }}</a></li>
+            {% endif %}
+            <li>{% if zone %}&gt; {% endif %}{{ facility.name }}
                 <a class="edit-link" href="{% url facility_form org_id=org.id zone_id=zone.id facility_id=facility.id %}">(edit)</a>
             </li>
         </ul>

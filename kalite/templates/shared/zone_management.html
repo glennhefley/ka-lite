@@ -1,4 +1,4 @@
-{% extends 'base_central.html' %}
+{% extends base_template %}
 
 {% block title %}{{ zone.name }} - Zone Management Console{% endblock title %}
 {% block management_active %}active{% endblock management_active %}
@@ -12,9 +12,11 @@
 
     <div class="titlebar">
         <ul class="titlebar__title">
+            {% if org %}
             <li><a href="{% url org_management %}"> {{ org.name }}</a></li>
+            {% endif %}
             <li>
-                &gt; {{ zone.name }}
+                {% if org %}&gt; {% endif %}{{ zone.name }}
                 <a class="edit-link" href="{% url zone_form org_id=org.id zone_id=zone.id %}">(edit)</a>
             </li>
             <ul class="titlebar__buttons">

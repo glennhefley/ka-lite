@@ -4,9 +4,9 @@ from main.models import LanguagePack
 
 def custom(request):
     return {
+        "base_template": "base_distributed.html",
         "central_server_host": settings.CENTRAL_SERVER_HOST,
         "is_central": settings.CENTRAL_SERVER,
-        "base_template": "base_central.html" if settings.CENTRAL_SERVER else "base_distributed.html",
         "CONTENT_ROOT": settings.CONTENT_ROOT,
         "CONTENT_URL": settings.CONTENT_URL,
         "DATA_PATH": settings.DATA_PATH,

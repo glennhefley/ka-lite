@@ -21,7 +21,7 @@ from utils.topics import slug_key, title_key
 from main import topicdata
 from securesync.views import require_admin, facility_required
 from config.models import Settings
-from securesync.models import Facility, FacilityUser,FacilityGroup
+from securesync.models import Facility, FacilityUser,FacilityGroup, DeviceZone, Device
 from models import VideoLog, ExerciseLog, VideoFile
 from config.models import Settings
 from securesync.api_client import SyncClient
@@ -409,6 +409,15 @@ def user_list(request,facility):
     if users:
         context["pageurls"] = {"next_page": next_page_url, "prev_page": previous_page_url}
     return context
+
+def zone_discovery(request):
+    dz = DeviceZone.objects.filter(device=Device.get_own_device())
+    if len(dz) == 0:
+        return HttpResponseNotFound("no zone.")
+    
+    zone = dz[0].zone
+    return HttpResponseRedirect(reverse("zone_management", kwargs={"zone_id": zone.pk}))
+
 
 def distributed_404_handler(request):
     return HttpResponseNotFound(render_to_string("404_distributed.html", {}, context_instance=RequestContext(request)))

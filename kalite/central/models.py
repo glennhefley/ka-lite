@@ -55,7 +55,7 @@ class Organization(models.Model):
         # Make org unique by name, for dummy name only.
         if self.name==Organization.dummy_name:
             dummy_orgs = Organization.objects.filter(name=Organization.dummy_name)
-            if len(dummy_orgs)>0 and self.pk not in [d.pk for d in dummy_ogs]:
+            if len(dummy_orgs)>0 and self.pk not in [d.pk for d in dummy_orgs]:
                 raise Exception("Cannot add more than one dummy org!")
                 
         super(Organization, self).save(*args, **kwargs)

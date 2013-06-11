@@ -3,6 +3,7 @@ from django.conf.urls.defaults import patterns, include, url
 from django.contrib import admin
 
 import securesync.urls
+import shared.urls
 from kalite import settings
 
 
@@ -39,6 +40,11 @@ urlpatterns += patterns('main.views',
     url(r'^$', 'homepage', {}, 'homepage'),
     url(r'^update/$', 'update', {}, 'update'),
     url(r'^userlist/$', 'user_list', {}, 'user_list'),
+
+    # Zone, facility, device
+    url(r'^zone/$', 'zone_discovery', {}, 'zone_discovery'),
+    url(r'^(?P<org_id>\s{0})', include(shared.urls)), # no org_id, but parameter needed for reverse url look-up
+
     url(r'^api/', include('main.api_urls')),
 )
 
