@@ -306,6 +306,18 @@ def facility_mastery(request, org_id, zone_id, facility_id):
 
 
 @authorized_login_required
+@render_to("shared/coach_reports.html")
+def facility_data_download(request, org_id, zone_id, facility_id):
+    raise NotImplementedError()
+
+
+@authorized_login_required
+@render_to("shared/coach_reports.html")
+def facility_data_upload(request, org_id, zone_id, facility_id):
+    raise NotImplementedError()
+
+
+@authorized_login_required
 @render_to("shared/group_report.html")
 def group_report(request, facility_id, group_id, org_id=None, zone_id=None):
     facility = get_object_or_404(Facility, pk=facility_id)

@@ -17,6 +17,8 @@ urlpatterns = patterns('shared.views',
     url(r'zone/(?P<zone_id>\w+)/facility/(?P<facility_id>\w+)/edit$', 'facility_form', {}, 'facility_form'),
     url(r'zone/(?P<zone_id>\w+)/facility/(?P<facility_id>\w+)/mastery/$', 'facility_mastery', {}, 'facility_mastery'),
     url(r'zone/(?P<zone_id>\w+)/facility/(?P<facility_id>\w+)/usage/$', 'facility_usage', {}, 'facility_usage'),
+    url(r'zone/(?P<zone_id>\w+)/facility/(?P<facility_id>\w+)/upload/$', 'facility_data_upload', {}, 'facility_data_upload'),
+    url(r'zone/(?P<zone_id>\w+)/facility/(?P<facility_id>\w+)/download/$', 'facility_data_download', {}, 'facility_data_download'),
 
     # Group
     url(r'zone/(?P<zone_id>\w+)/facility/(?P<facility_id>\w+)/group/(?P<group_id>\w+)$', 'group_report', {}, 'group_report'),
