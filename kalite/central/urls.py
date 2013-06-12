@@ -7,6 +7,7 @@ import shared.urls
 from kalite import settings
 from feeds import RssSiteNewsFeed, AtomSiteNewsFeed
 
+admin.autodiscover()
 
 def redirect_to(self, base_url, path=""):
     return HttpResponseRedirect(base_url + path)

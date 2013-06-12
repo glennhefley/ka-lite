@@ -16,7 +16,8 @@
             
             
             {% comment "Provide upload/download buttons" %}{% endcomment %}
-            {% if not form %}
+            
+            {% if not form and download_test != "False" %}
             <ul class="titlebar__buttons">
                 {% if facility %}
                 <li>

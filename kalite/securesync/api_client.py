@@ -267,7 +267,6 @@ class SyncClient(object):
             elif server_counters[device] > client_counters[device]:
                 self.counters_to_download[device] = client_counters[device]
                 
-        import pdb; pdb.set_trace()
         response = json.loads(self.post("device/download", {"devices": devices_to_download}).content)
         if not save:
             download_results = None

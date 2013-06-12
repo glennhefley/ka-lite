@@ -19,6 +19,7 @@
                 <th width="250px">Facility Name</th>
                 <th width="80px"># users</th>
                 <th width="80px"># groups</th>
+                <th width="100px">Actions</th>
                 <th width="100px">Reports</th>
                 <th width="100px"></th>
             </tr>
@@ -34,6 +35,7 @@
                     <td>{{ facility.num_users }}</td>
                     <td>{{ facility.num_groups }}</td>
 
+                    <td>[<a href="{% url facility_user_management org_id=org.id zone_id=zone.id facility_id=id %}">manage users</a>] </td>
                     <td>[<a href="{% url facility_usage org_id=org.id zone_id=zone.id facility_id=id %}">usage report</a>] </td>
                     <td>[<a href="{% url facility_mastery org_id=org.id zone_id=zone.id facility_id=id %}">mastery report</a>] </td>
                 </tr>

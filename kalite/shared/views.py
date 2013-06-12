@@ -1,6 +1,7 @@
 import collections
 import datetime
 import json
+import pickle
 import logging
 import re
 from annoying.decorators import render_to
@@ -15,7 +16,7 @@ from django.contrib.auth.decorators import login_required
 from django.views.decorators.csrf import csrf_exempt
 from django.contrib import messages
 from django.template.loader import render_to_string
-from django.template.loader import render_to_string
+from django.core import serializers
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 from django.utils.translation import ugettext as _
 
@@ -31,71 +32,10 @@ from main.models import ExerciseLog, VideoLog
 from securesync.model_sync import save_serialized_models, get_serialized_models
 from securesync.forms import FacilityForm
 from utils.packaging import package_offline_install_zip
-from utils.decorators import require_admin#authorized_login_required
+from utils.decorators import require_admin, authorized_login_required
 
 
 
-def authorized_login_required(handler):
-    if settings.CENTRAL_SERVER:
-        @login_required
-        def wrapper_fn(request, *args, **kwargs):
-            user = request.user
-            assert not user.is_anonymous(), "Wrapped by login_required!"
-
-            if user.is_superuser:
-                return handler(request, *args, **kwargs)
-        
-            org = None; org_id      = kwargs.get("org_id", None)
-            zone = None; zone_id     = kwargs.get("zone_id", None)
-            device = None; device_id   = kwargs.get("device_id", None)
-            facility = None; facility_id = kwargs.get("facility_id", None)
-        
-            # Validate device through zone
-            if device_id:
-                device = get_object_or_404(Device, pk=device_id)
-                if not zone_id:
-                    zone = device.get_zone()
-                    if not zone:
-                        return HttpResponseForbidden("Device, no zone, no DeviceZone")
-                    zone_id = zone.pk
-                
-            # Validate device through zone
-            if facility_id:
-                facility = get_object_or_404(Facility, pk=facility_id)
-                if not zone_id:
-                    zone = facility.get_zone()
-                    if not zone:
-                        return HttpResponseForbidden("Facility, no zone")
-                    zone_id = zone.pk
-                
-            # Validate zone through org
-            if zone_id:
-                zone = get_object_or_404(Zone, pk=zone_id)
-                if not org_id:
-                    orgs = Organization.from_zone(zone)
-                    if len(orgs) != 1:
-                        return HttpResponseForbidden("Zone, no org")
-                    org = orgs[0]
-                    org_id = org.pk
-
-            if org_id:
-                if org_id=="new":
-                    return HttpResponseForbidden("Org")
-                org = get_object_or_404(Organization, pk=org_id)
-                if not org.is_member(request.user):
-                    return HttpResponseForbidden("Org")
-                elif zone_id and zone and org.zones.filter(pk=zone.pk).count() == 0:
-                    return HttpResponseForbidden("This organization does not have permissions for this zone.")
-    
-            # Made it through, we're safe!
-            return handler(request, *args,**kwargs)
-
-    else:
-        @require_admin
-        def wrapper_fn(request, *args, **kwargs):
-            return handler(request, *args,**kwargs)
-
-    return wrapper_fn
         
         
 @authorized_login_required
@@ -125,41 +65,73 @@ def zone_form(request, zone_id, org_id=None):
 
 @authorized_login_required
 def zone_data_upload(request, zone_id, org_id=None):
-#    org = get_object_or_404(Organization, pk=org_id) if org_id else None
-#    zone = get_object_or_404(Zone, pk=zone_id) if zone_id != "new" else None
-
     if request.method != 'POST':
         return HttpResponseForbidden()
 
+    # Validate form and get file data
     form = UploadFileForm(request.POST, request.FILES)
     if not form.is_valid():
         return HttpResponseServerError("Unparseable POST request")
+    data = pickle.loads(request.FILES['file'].read())
 
-    models_json = request.FILES['file'].read()
-    save_serialized_models(models_json, increment_counters=True, client_version=kalite.VERSION) #version is a lie
-     
+    # TODO(bcipolli): why should I trust the signer.  Who are you to me?
+    signed_by = serializers.deserialize("json", data["signed_by"]).next().object
+    if signed_by == Device.get_own_device():
+        logging.getLogger("kalite").debug("upload: I trust myself.")
+    elif signed_by.get_zone.id == zone_id:
+        logging.getLogger("kalite").debug("upload: I trust others that are on this zone.")
+    else:
+        return HttpResponseForbidden("upload: You're not on this zone, you can't use zone upload.  Use your own zone, or do this from org upload.")
+
+    # Verify the signatures on the data
+    if not signed_by.get_key().verify(data["devices"],  data["devices_signature"]):
+        return HttpResponseForbidden("Devices are corrupted")
+    if not signed_by.get_key().verify(data["models"],  data["models_signature"]):
+        return HttpResponseForbidden("Models are corrupted")
+    
+    # Save the data and check for errors
+    result = save_serialized_models(data["devices"], increment_counters=False, client_version=signed_by.version) #version is a lie
+    if result.get("errors", 0):
+        return HttpResponseServerError("Errors uploading devices: %s" % str(result["errors"]))
+    result = save_serialized_models(data["models"], increment_counters=False, client_version=signed_by.version) #version is a lie
+    if result.get("errors", 0):
+        return HttpResponseServerError("Errors uploading models: %s" % str(result["errors"]))
+    
+    # Reload the page
     return HttpResponseRedirect(reverse("zone_management", kwargs={"org_id": org_id, "zone_id": zone_id}))
 
     
 @authorized_login_required
 def zone_data_download(request, zone_id, org_id=None):
-#    org = get_object_or_404(Organization, pk=org_id) if org_id else None
-    zone = get_object_or_404(Zone, pk=zone_id)# if zone_id != "new" else None
-
+    zone = Zone.objects.get(id=zone_id)
+    own_device = Device.get_own_device()
     device_counters = dict()
     for dz in DeviceZone.objects.filter(zone=zone):
         device = dz.device
         device_counters[device.id] = 0
 
     # Get the data
-    serialized_models = get_serialized_models(device_counters=device_counters, limit=100000000, zone=zone, include_count=True, client_version=kalite.VERSION)
+    sync_client = SyncClient()
+    sync_client.start_session()
+    data = {
+        "devices": sync_client.download_devices(server_counters = device_counters, save=False)[1],
+        "models": sync_client.download_models(device_counters, save=False)[1]['models']
+    }
+    #sync_client.end_session()
+    
+    # Sign the data
+    data["devices_signature"] = own_device.get_key().sign(data["devices"])
+    data["models_signature"] = own_device.get_key().sign(data["models"])
+    data["signed_by"] = serializers.serialize("json", [own_device], ensure_ascii=True)
 
-    # Stream the data back to the user."
-    user_facing_filename = "data-zone-%s-date-%s-v%s.json" % (zone.name, str(datetime.datetime.now()), kalite.VERSION)
+    # Stream the data back to the user
+    user_facing_filename = "data-zone-%s-date-%s-v%s.pkl" % (zone.name, str(datetime.datetime.now()), kalite.VERSION)
     user_facing_filename = user_facing_filename.replace(" ","_").replace("%","_")
-    response = HttpResponse(content=serialized_models['models'], mimetype='text/json', content_type='text/json')
+    response = HttpResponse(content=pickle.dumps(data), mimetype='text/pickle', content_type='text/pickle')
     response['Content-Disposition'] = 'attachment; filename="%s"' % user_facing_filename
+    
     return response
+
 
 
 @authorized_login_required
@@ -322,7 +294,7 @@ def facility_data_upload(request, org_id, zone_id, facility_id):
 @authorized_login_required
 @render_to("shared/group_report.html")
 def group_report(request, facility_id, group_id, org_id=None, zone_id=None):
-    return group_report_context(
+    context = group_report_context(
         facility_id=facility_id, 
         group_id=group_id or request.REQUEST.get("group", ""), 
         topic_id=request.REQUEST.get("topic", ""), 
@@ -330,7 +302,31 @@ def group_report(request, facility_id, group_id, org_id=None, zone_id=None):
         zone_id=zone_id
     )
     
+    context["org"] = get_object_or_None(Organization, pk=org_id) if org_id else None
+    context["zone"] = get_object_or_None(Zone, pk=zone_id) if zone_id else None
+    context["facility"] = get_object_or_404(Facility, pk=facility_id) if id != "new" else None
+    context["group"] = get_object_or_None(FacilityGroup, pk=group_id)
+
+    return context
+
+@authorized_login_required
+@render_to("shared/facility_user_management.html")
+def facility_user_management(request, facility_id, group_id="", org_id=None, zone_id=None):
+    group_id=group_id or request.REQUEST.get("group","")
     
+    context = facility_users_context(
+        request=request,
+        facility_id=facility_id, 
+        group_id=group_id,
+        page=request.REQUEST.get("page","1"),
+    )
+    
+    context["org"] = get_object_or_None(Organization, pk=org_id) if org_id else None
+    context["zone"] = get_object_or_None(Zone, pk=zone_id) if zone_id else None
+    context["facility"] = get_object_or_404(Facility, pk=facility_id) if id != "new" else None
+    context["group"] = get_object_or_None(FacilityGroup, pk=group_id)
+    return context
+
 def get_users_from_group(group_id, facility=None):
     if group_id == "Ungrouped":
         return FacilityUser.objects.filter(facility=facility,group__isnull=True)
@@ -374,7 +370,7 @@ def group_report_context(facility_id, group_id, topic_id, org_id=None, zone_id=N
             "username": user.username,
             "exercise_logs": [get_object_or_None(ExerciseLog, user=user, exercise_id=ex["name"]) for ex in exercises],
         } for user in get_users_from_group(context['group_id'], facility=facility)]
-        
+
     return context
 
  

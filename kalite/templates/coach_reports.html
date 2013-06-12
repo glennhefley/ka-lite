@@ -12,5 +12,6 @@
 {% block title %}Coach Reports{% endblock title %}
 
 {% block content %}
-{% include "coach_reports_body.html" %}
+    <div class="facility"><h2>{% blocktrans %}Coach Reports for {{ facility }}{% endblocktrans %} (<a href="?facility=select">{% trans "Change Facility" %}</a>)</h2></div>
+    {% include "coach_reports_body.html" %}
 {% endblock content %}
