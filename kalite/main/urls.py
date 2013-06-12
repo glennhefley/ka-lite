@@ -33,18 +33,17 @@ urlpatterns += patterns('',
 )
 
 urlpatterns += patterns('main.views',
-    url(r'^exercisedashboard/$', 'exercise_dashboard', {}, 'exercise_dashboard'),
+    url(r'^$', 'homepage', {}, 'homepage'),
     url(r'^coachreports/$', 'coach_reports', {}, 'coach_reports'),
     url(r'^easyadmin/$', 'easy_admin', {}, 'easy_admin'),
-    url(r'^stats/$', 'summary_stats', {}, 'summary_stats'),
-    url(r'^$', 'homepage', {}, 'homepage'),
+    url(r'^exercisedashboard/$', 'exercise_dashboard', {}, 'exercise_dashboard'),
     url(r'^update/$', 'update', {}, 'update'),
     url(r'^userlist/$', 'user_list', {}, 'user_list'),
 
-    # Zone, facility, device
-    url(r'^zone/$', 'zone_discovery', {}, 'zone_discovery'), # only one zone, so make an easy way to access it
-    url(r'^device/$', 'device_discovery', {}, 'device_discovery'), # only one device, so make an easy way to access it
-    url(r'^(?P<org_id>\s{0})', include(shared.urls)), # no org_id, but parameter needed for reverse url look-up
+    # Management: Zone, facility, device
+    url(r'^management/zone/$', 'zone_discovery', {}, 'zone_discovery'), # only one zone, so make an easy way to access it
+    url(r'^management/device/$', 'device_discovery', {}, 'device_discovery'), # only one device, so make an easy way to access it
+    url(r'^management/(?P<org_id>\s{0})', include(shared.urls)), # no org_id, but parameter needed for reverse url look-up
 
     url(r'^api/', include('main.api_urls')),
 )
