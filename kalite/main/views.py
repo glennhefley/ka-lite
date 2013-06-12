@@ -19,7 +19,6 @@ from django.views.decorators.cache import cache_page
 import settings
 from utils.topics import slug_key, title_key
 from main import topicdata
-from config.models import Settings
 from securesync.models import Facility, FacilityUser,FacilityGroup, DeviceZone, Device
 from models import VideoLog, ExerciseLog, VideoFile
 from config.models import Settings

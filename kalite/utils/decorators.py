@@ -1,3 +1,5 @@
+from annoying.functions import get_object_or_None
+
 from django.http import HttpResponse, HttpResponseNotFound, HttpResponseRedirect, HttpResponseForbidden, HttpResponseServerError
 from django.shortcuts import render_to_response, get_object_or_404, redirect, get_list_or_404
 from django.contrib import messages
@@ -10,6 +12,7 @@ from django.utils.translation import ugettext as _
 import settings
 from securesync.models import Device, DeviceZone, Zone, Facility
 from central.models import Organization
+from config.models import Settings
 
 def require_admin(handler):
     def wrapper_fn(request, *args, **kwargs):
