@@ -256,7 +256,7 @@ class SyncClient(object):
                 self.upload_devices(server_counters=server_counters, client_counters=client_counters)
 
 
-    def download_devices(self, server_counters, client_counters, save=True):
+    def download_devices(self, server_counters, client_counters=[], save=True):
         devices_to_download = []
         self.counters_to_download = {}
         
@@ -267,8 +267,11 @@ class SyncClient(object):
             elif server_counters[device] > client_counters[device]:
                 self.counters_to_download[device] = client_counters[device]
                 
+        import pdb; pdb.set_trace()
         response = json.loads(self.post("device/download", {"devices": devices_to_download}).content)
-        if save:
+        if not save:
+            download_results = None
+        else:
             download_results = model_sync.save_serialized_models(response.get("devices", "[]"), increment_counters=False, client_version=self.session.client_device.version)
 
             # BUGFIX(bcipolli) metadata only gets created if models are 
@@ -283,10 +286,10 @@ class SyncClient(object):
                 dm.counter_position = self.counters_to_download[device_id]
                 dm.save()
 
-        self.session.models_downloaded += download_results["saved_model_count"]
-        self.session.errors += download_results.has_key("error")
+            self.session.models_downloaded += download_results["saved_model_count"]
+            self.session.errors += download_results.has_key("error")
         
-        return (response.get("devices", "[]"), download_results)
+        return (download_results, response.get("devices", "[]"))
         
 
     def upload_devices(self, server_counters, client_counters, save=True):
@@ -301,7 +304,6 @@ class SyncClient(object):
                 self.counters_to_upload[device] = server_counters[device]
         
         result = self.post("device/upload", {"devices":  devices_to_upload}).content
-        import pdb; pdb.set_trace()
         upload_results = json.loads(result)
 
         self.session.models_uploaded += upload_results["saved_model_count"]
@@ -313,7 +315,6 @@ class SyncClient(object):
         
     def sync_models(self, sync_directions=["download", "upload"]):
         """ """
-        import pdb; pdb.set_trace()
         out_dict = dict()
         
         for direction in sync_directions:
@@ -329,15 +330,19 @@ class SyncClient(object):
         return out_dict
     
     
-    def download_models(self, save_models=True):
+    def download_models(self, counters_to_download=None, save=False):
+        if not counters_to_download:
+            counters_to_download = self.counters_to_download
+            save = True
+            
         # Download (but prepare for errors--both thrown and unthrown!)
         download_results = {
             "saved_model_count" : 0,
             "unsaved_model_count" : 0,
         }
         try:
-            response = json.loads(self.post("models/download", {"device_counters": self.counters_to_download}).content)
-            if save_models:
+            response = json.loads(self.post("models/download", {"device_counters": counters_to_download}).content)
+            if save:
                 download_results = model_sync.save_serialized_models(response.get("models", "[]"))
                 self.session.models_downloaded += download_results["saved_model_count"]
                 self.session.errors += download_results.has_key("error")

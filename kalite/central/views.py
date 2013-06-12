@@ -2,6 +2,7 @@ import logging
 import re, json
 import requests
 import datetime
+import pickle
 from annoying.decorators import render_to
 from annoying.functions import get_object_or_None
 from decorator.decorator import decorator
@@ -16,6 +17,7 @@ from django.contrib import messages
 from django.template.loader import render_to_string
 from django.utils.translation import ugettext as _
 from django.template.loader import render_to_string
+from django.core import serializers
 
 import kalite
 import settings
@@ -294,7 +296,7 @@ def zone_form(request, zone_id, org_id=None):
         if form.is_valid():
             form.instance.save()
             org.zones.add(form.instance)
-            return HttpResponseRedirect(reverse("org_management"))
+            return HttpResponseRedirect(reverse("zone_management", kwargs={"org_id": org.id, "zone_id": form.instance.id}))
     else:
         form = ZoneForm(instance=zone)
     return {
@@ -305,37 +307,71 @@ def zone_form(request, zone_id, org_id=None):
 
 @authorized_login_required
 def zone_data_upload(request, zone_id, org_id=None):
-    #import pdb; pdb.set_trace()
     if request.method != 'POST':
         return HttpResponseForbidden()
 
+    # Validate form and get file data
     form = UploadFileForm(request.POST, request.FILES)
     if not form.is_valid():
         return HttpResponseServerError("Unparseable POST request")
+    data = pickle.loads(request.FILES['file'].read())
 
-    models_json = request.FILES['file'].read()
-    save_serialized_models(models_json, increment_counters=True, client_version=kalite.VERSION) #version is a lie
-     
+    # TODO(bcipolli): why should I trust the signer.  Who are you to me?
+    signed_by = serializers.deserialize("json", data["signed_by"]).next().object
+    if signed_by == Device.get_own_device():
+        logging.getLogger("kalite").debug("upload: I trust myself.")
+    elif signed_by.get_zone.id == zone_id:
+        logging.getLogger("kalite").debug("upload: I trust others that are on this zone.")
+    else:
+        return HttpResponseForbidden("upload: You're not on this zone, you can't use zone upload.  Use your own zone, or do this from org upload.")
+
+    # Verify the signatures on the data
+    if not signed_by.get_key().verify(data["devices"],  data["devices_signature"]):
+        return HttpResponseForbidden("Devices are corrupted")
+    if not signed_by.get_key().verify(data["models"],  data["models_signature"]):
+        return HttpResponseForbidden("Models are corrupted")
+    
+    # Save the data and check for errors
+    result = save_serialized_models(data["devices"], increment_counters=False, client_version=signed_by.version) #version is a lie
+    if result.get("errors", 0):
+        return HttpResponseServerError("Errors uploading devices: %s" % str(result["errors"]))
+    result = save_serialized_models(data["models"], increment_counters=False, client_version=signed_by.version) #version is a lie
+    if result.get("errors", 0):
+        return HttpResponseServerError("Errors uploading models: %s" % str(result["errors"]))
+    
+    # Reload the page
     return HttpResponseRedirect(reverse("zone_management", kwargs={"org_id": org_id, "zone_id": zone_id}))
 
     
 @authorized_login_required
 def zone_data_download(request, zone_id, org_id=None):
     zone = Zone.objects.get(id=zone_id)
-
+    own_device = Device.get_own_device()
     device_counters = dict()
     for dz in DeviceZone.objects.filter(zone=zone):
         device = dz.device
         device_counters[device.id] = 0
 
     # Get the data
-    serialized_models = get_serialized_models(device_counters=device_counters, limit=100000000, zone=zone, include_count=True, client_version=kalite.VERSION)
+    sync_client = SyncClient()
+    sync_client.start_session()
+    data = {
+        "devices": sync_client.download_devices(server_counters = device_counters, save=False)[1],
+        "models": sync_client.download_models(device_counters, save=False)[1]['models']
+    }
+    #sync_client.end_session()
+    
+    # Sign the data
+    data["devices_signature"] = own_device.get_key().sign(data["devices"])
+    data["models_signature"] = own_device.get_key().sign(data["models"])
+    data["signed_by"] = serializers.serialize("json", [own_device], ensure_ascii=True)
 
-    # Stream the data back to the user."
-    user_facing_filename = "data-zone-%s-date-%s-v%s.json" % (zone.name, str(datetime.datetime.now()), kalite.VERSION)
+    # Stream the data back to the user
+    user_facing_filename = "data-zone-%s-date-%s-v%s.pkl" % (zone.name, str(datetime.datetime.now()), kalite.VERSION)
     user_facing_filename = user_facing_filename.replace(" ","_").replace("%","_")
-    response = HttpResponse(content=serialized_models['models'], mimetype='text/json', content_type='text/json')
+    response = HttpResponse(content=pickle.dumps(data), mimetype='text/pickle', content_type='text/pickle')
     response['Content-Disposition'] = 'attachment; filename="%s"' % user_facing_filename
+    
     return response
 
 

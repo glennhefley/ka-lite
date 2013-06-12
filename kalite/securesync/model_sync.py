@@ -30,7 +30,8 @@ def get_serialized_models(device_counters=None, limit=100, zone=None, include_co
 
     # use the current device's zone if one was not specified
     if not zone:
-        zone = Device.get_own_device().get_zone()
+        pass
+#        zone = Device.get_own_device().get_zone()
 
     # if no devices specified, assume we're starting from zero, and include all devices in the zone
     if device_counters is None:        
@@ -39,7 +40,7 @@ def get_serialized_models(device_counters=None, limit=100, zone=None, include_co
     # remove all requested devices that either don't exist or aren't in the correct zone
     for device_id in device_counters.keys():
         device = get_object_or_None(Device, pk=device_id)
-        if not device or not (device.in_zone(zone) or device.get_metadata().is_trusted):
+        if not device or (zone and not (device.in_zone(zone)) or device.get_metadata().is_trusted):
             del device_counters[device_id]
 
     models = []
@@ -61,7 +62,7 @@ def get_serialized_models(device_counters=None, limit=100, zone=None, include_co
                 queryset = Model.objects.filter(signed_by=device)
             
                 # for trusted (central) device, only include models with the correct fallback zone
-                if not device.in_zone(zone):
+                if zone and not device.in_zone(zone):
                     if device.get_metadata().is_trusted:
                         queryset = queryset.filter(zone_fallback=zone)
                     else:
