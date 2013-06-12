@@ -30,13 +30,13 @@ class SyncClient(object):
         url = urllib2.urlparse.urlparse(host)
         self.url = "%s://%s" % (url.scheme, url.netloc)
         self.require_trusted = require_trusted
-    
+
     def path_to_url(self, path):
         if path.startswith("/"):
             return self.url + path
         else:
             return self.url + "/securesync/api/" + path
-    
+
     def post(self, path, payload={}, *args, **kwargs):
         if self.session and self.session.client_nonce:
             payload["client_nonce"] = self.session.client_nonce
@@ -146,13 +146,17 @@ class SyncClient(object):
         self.session = SyncSession()
         
         # Request one: validate me as a sessionable partner
-        (self.session.client_nonce, 
-         self.session.client_device,
-         data) = self.validate_me_on_server()
-
+        (self.session.client_device,
+         client_data,
+         server_data) = self.validate_me_on_server()
+        self.session.client_nonce  = client_data['client_nonce']
+        self.session.client_version = client_data['client_version']
+        self.session.client_os     = client_data['client_os']
+         
         # Able to create session
-        signature = data.get("signature", "")
-        session = serializers.deserialize("json", data["session"], server_version=kalite.VERSION).next().object
+        signature = server_data.get("signature", "")
+        session = serializers.deserialize("json", server_data["session"], server_version=kalite.VERSION).next().object
+
         self.session.server_nonce = session.server_nonce
         self.session.server_device = session.server_device
         if not session.verify_server_signature(signature):
@@ -177,22 +181,19 @@ class SyncClient(object):
             "signature": self.session.sign(),
         })
         
-        if r.status_code == 200:
-            return "success"
-        else:
-            return r
+        return "success" if (r.status_code == 200) else r
 
 
     def validate_me_on_server(self, recursive_retry=False):
-        client_nonce = uuid.uuid4().hex
         client_device = Device.get_own_device()
-        
-        r = self.post("session/create", {
-            "client_nonce": client_nonce,
+        client_session_info = {
+            "client_nonce": uuid.uuid4().hex,
             "client_device": client_device.pk,
             "client_version": kalite.VERSION,
             "client_os": kalite.OS,
-        })
+        }
+        
+        r = self.post("session/create", client_session_info)
         
         raw_data = r.content
         try:
@@ -217,7 +218,7 @@ class SyncClient(object):
                 return self.validate_me_on_server(recursive_retry=True)
             raise Exception(data.get("error", ""))
 
-        return (client_nonce, client_device, data)
+        return (client_device, client_session_info, data)
         
 
     def close_session(self):
@@ -237,23 +238,27 @@ class SyncClient(object):
     def get_client_device_counters(self):
         return Device.get_device_counters(self.session.client_device.get_zone())
 
-    def sync_device_records(self):
+    def sync_device_records(self, sync_directions=["download", "upload"]):
+        """Directions can contain upload or download"""
         
+        # Handle a single string arg
+        if hasattr(sync_directions, "lower"):
+            sync_directions = [sync_directions]
+            
         server_counters = self.get_server_device_counters()
         client_counters = self.get_client_device_counters()
-        
+
+        for direction in sync_directions:
+
+            if direction=="download":
+                self.download_devices(server_counters=server_counters, client_counters=client_counters)
+            else:
+                self.upload_devices(server_counters=server_counters, client_counters=client_counters)
+
+
+    def download_devices(self, server_counters, client_counters, save=True):
         devices_to_download = []
-        devices_to_upload = []
-        
         self.counters_to_download = {}
-        self.counters_to_upload = {}
-        
-        for device in client_counters:
-            if device not in server_counters:
-                devices_to_upload.append(device)
-                self.counters_to_upload[device] = 0
-            elif client_counters[device] > server_counters[device]:
-                self.counters_to_upload[device] = server_counters[device]
         
         for device in server_counters:
             if device not in client_counters:
@@ -263,37 +268,68 @@ class SyncClient(object):
                 self.counters_to_download[device] = client_counters[device]
                 
         response = json.loads(self.post("device/download", {"devices": devices_to_download}).content)
-        download_results = model_sync.save_serialized_models(response.get("devices", "[]"), increment_counters=False)
-        
-        # BUGFIX(bcipolli) metadata only gets created if models are 
-        #   streamed; if a device is downloaded but no models are downloaded,
-        #   metadata does not exist.  Let's just force it here.
-        for device_id in devices_to_download: # force
-            try:
-                d = Device.objects.get(id=device_id)
-            except:
-                continue
-            dm = d.get_metadata()
-            dm.counter_position = self.counters_to_download[device_id]
-            dm.save()
-        
+        if save:
+            download_results = model_sync.save_serialized_models(response.get("devices", "[]"), increment_counters=False, client_version=self.session.client_device.version)
+
+            # BUGFIX(bcipolli) metadata only gets created if models are 
+            #   streamed; if a device is downloaded but no models are downloaded,
+            #   metadata does not exist.  Let's just force it here.
+            for device_id in devices_to_download: # force
+                try:
+                    d = Device.objects.get(id=device_id)
+                except:
+                    continue
+                dm = d.get_metadata()
+                dm.counter_position = self.counters_to_download[device_id]
+                dm.save()
+
         self.session.models_downloaded += download_results["saved_model_count"]
         self.session.errors += download_results.has_key("error")
-
-        # TODO(jamalex): upload local devices as well? only needed once we have P2P syncing
+        
+        return (response.get("devices", "[]"), download_results)
         
 
-    def sync_models(self):
-        
-        if self.counters_to_download is None or self.counters_to_upload is None:
-            self.sync_device_records()
+    def upload_devices(self, server_counters, client_counters, save=True):
+        devices_to_upload = []
+        self.counters_to_upload = {}
 
-        download_results = self.download_models()
-        upload_results = self.upload_models()
+        for device in client_counters:
+            if device not in server_counters:
+                devices_to_upload.append(device)
+                self.counters_to_upload[device] = 0
+            elif client_counters[device] > server_counters[device]:
+                self.counters_to_upload[device] = server_counters[device]
         
-        return {"download_results": download_results, "upload_results": upload_results}
+        result = self.post("device/upload", {"devices":  devices_to_upload}).content
+        import pdb; pdb.set_trace()
+        upload_results = json.loads(result)
+
+        self.session.models_uploaded += upload_results["saved_model_count"]
+        self.session.errors += upload_results.has_key("error")
+
+        return upload_results
         
-    def download_models(self):
+        
+        
+    def sync_models(self, sync_directions=["download", "upload"]):
+        """ """
+        import pdb; pdb.set_trace()
+        out_dict = dict()
+        
+        for direction in sync_directions:
+            if direction=="download":
+                if self.counters_to_download is None:
+                    self.sync_device_records(sync_directions=["download"])
+                out_dict['download_results'] = self.download_models()[0]
+                
+            else:
+                if self.counters_to_upload is None:
+                    self.sync_device_records(sync_directions=["upload"])
+                out_dict['upload_results'] = self.upload_models()
+        return out_dict
+    
+    
+    def download_models(self, save_models=True):
         # Download (but prepare for errors--both thrown and unthrown!)
         download_results = {
             "saved_model_count" : 0,
@@ -301,17 +337,19 @@ class SyncClient(object):
         }
         try:
             response = json.loads(self.post("models/download", {"device_counters": self.counters_to_download}).content)
-            download_results = model_sync.save_serialized_models(response.get("models", "[]"))
-            self.session.models_downloaded += download_results["saved_model_count"]
-            self.session.errors += download_results.has_key("error")
-            self.session.errors += download_results.has_key("exceptions")
+            if save_models:
+                download_results = model_sync.save_serialized_models(response.get("models", "[]"))
+                self.session.models_downloaded += download_results["saved_model_count"]
+                self.session.errors += download_results.has_key("error")
+                self.session.errors += download_results.has_key("exceptions")
         except Exception as e:
+            response = None
             download_results["error"] = e
             self.session.errors += 1
 
         self.counters_to_download = None
 
-        return download_results
+        return (download_results, response)
 
         
     def upload_models(self):
