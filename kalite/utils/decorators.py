@@ -10,9 +10,10 @@ from django.contrib.auth.decorators import login_required
 from django.utils.translation import ugettext as _
 
 import settings
-from securesync.models import Device, DeviceZone, Zone, Facility
 from central.models import Organization
 from config.models import Settings
+from securesync.models import Device, DeviceZone, Zone, Facility
+#from securesync.views import facility_selection
 
 def require_admin(handler):
     def wrapper_fn(request, *args, **kwargs):
@@ -41,40 +42,3 @@ def distributed_server_only(handler):
     return wrapper_fn
     
 
-
-def facility_from_request(handler):
-    def wrapper_fn(request, *args, **kwargs):
-        if kwargs.get("facility_id",None):
-            facility = get_object_or_None(pk=facility_id)
-        elif "facility" in request.GET:
-            facility = get_object_or_None(Facility, pk=request.GET["facility"])
-            if "set_default" in request.GET and request.is_admin and facility:
-                Settings.set("default_facility", facility.id)
-        elif "facility_user" in request.session:
-            facility = request.session["facility_user"].facility
-        elif Facility.objects.count() == 1:
-            facility = Facility.objects.all()[0]
-        else:
-            facility = get_object_or_None(Facility, pk=Settings.get("default_facility"))
-        return handler(request, *args, facility=facility, **kwargs)
-    return wrapper_fn
-
-
-def facility_required(handler):
-    @facility_from_request
-    def inner_fn(request, facility, *args, **kwargs):
-        if facility:
-            return handler(request, facility, *args, **kwargs)
-
-        if Facility.objects.count() == 0:
-            if request.is_admin:
-                messages.error(request, _("To continue, you must first add a facility (e.g. for your school). ") \
-                    + _("Please use the form below to add a facility."))
-            else:
-                messages.error(request,
-                    _("You must first have the administrator of this server log in below to add a facility."))
-            return HttpResponseRedirect(reverse("add_facility"))
-        else:
-            return facility_selection(request)
-    
-    return inner_fn

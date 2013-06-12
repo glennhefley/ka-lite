@@ -1,5 +1,7 @@
-import logging
 import collections
+import json
+import logging
+import re
 from annoying.decorators import render_to
 from annoying.functions import get_object_or_None
 from decorator.decorator import decorator
@@ -12,8 +14,9 @@ from django.contrib.auth.decorators import login_required
 from django.views.decorators.csrf import csrf_exempt
 from django.contrib import messages
 from django.template.loader import render_to_string
-from django.utils.translation import ugettext as _
 from django.template.loader import render_to_string
+from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
+from django.utils.translation import ugettext as _
 
 import kalite
 import settings
@@ -306,13 +309,11 @@ def facility_mastery(request, org_id, zone_id, facility_id):
 
 
 @authorized_login_required
-@render_to("shared/coach_reports.html")
 def facility_data_download(request, org_id, zone_id, facility_id):
     raise NotImplementedError()
 
 
 @authorized_login_required
-@render_to("shared/coach_reports.html")
 def facility_data_upload(request, org_id, zone_id, facility_id):
     raise NotImplementedError()
 
@@ -320,6 +321,26 @@ def facility_data_upload(request, org_id, zone_id, facility_id):
 @authorized_login_required
 @render_to("shared/group_report.html")
 def group_report(request, facility_id, group_id, org_id=None, zone_id=None):
+    return group_report_context(
+        facility_id=facility_id, 
+        group_id=group_id or request.REQUEST.get("group", ""), 
+        topic_id=request.REQUEST.get("topic", ""), 
+        org_id=org_id, 
+        zone_id=zone_id
+    )
+    
+    
+def get_users_from_group(group_id, facility=None):
+    if group_id == "Ungrouped":
+        return FacilityUser.objects.filter(facility=facility,group__isnull=True)
+    elif not group_id:
+        return []
+    else:
+        return get_object_or_404(FacilityGroup, pk=group_id).facilityuser_set.order_by("first_name", "last_name")
+
+
+
+def group_report_context(facility_id, group_id, topic_id, org_id=None, zone_id=None):
     facility = get_object_or_404(Facility, pk=facility_id)
     
     topics = topicdata.EXERCISE_TOPICS["topics"].values()
@@ -331,11 +352,9 @@ def group_report(request, facility_id, group_id, org_id=None, zone_id=None):
         "groups": groups,
         "group_id": group_id,
         "topics": topics,
+        "topic_id": topic_id,
         "exercise_paths": json.dumps(paths),
     }
-
-    context["topic_id"] = request.GET.get("topic", "")
-    context["group_id"] = group_id or request.GET.get("group", "")
     
     if context["group_id"] and context["topic_id"] and re.match("^[\w\-]+$", context["topic_id"]):
         exercises = json.loads(open("%stopicdata/%s.json" % (settings.DATA_PATH, context["topic_id"])).read())
@@ -346,16 +365,59 @@ def group_report(request, facility_id, group_id, org_id=None, zone_id=None):
             "short_display_name": ex["short_display_name"],
             "path": topicdata.NODE_CACHE["Exercise"][ex["name"]]["path"],
         } for ex in exercises]
-        users = get_object_or_404(FacilityGroup, pk=context["group_id"]).facilityuser_set.order_by("first_name", "last_name")
+
+        
         context["students"] = [{
             "first_name": user.first_name,
             "last_name": user.last_name,
             "username": user.username,
             "exercise_logs": [get_object_or_None(ExerciseLog, user=user, exercise_id=ex["name"]) for ex in exercises],
-        } for user in users]
+        } for user in get_users_from_group(context['group_id'], facility=facility)]
+        
     return context
 
  
+def facility_users_context(request, facility_id, group_id, page=1, per_page=25):
+    facility = Facility.objects.get(id=facility_id)
+    groups = FacilityGroup.objects.filter(facility=facility)
+
+    user_list = get_users_from_group(group_id, facility=facility)
+        
+    # Get the user list from the group
+    if not user_list:
+        users = []
+    else:
+        paginator = Paginator(user_list, per_page)
+        try:
+            users = paginator.page(page)
+        except PageNotAnInteger:
+            users = paginator.page(1)
+        except EmptyPage:
+            users = paginator.page(paginator.num_pages)
+            
+    if users:
+        if users.has_previous():
+            prevGETParam = request.GET.copy()
+            prevGETParam["page"] = users.previous_page_number()
+            previous_page_url = "?" + prevGETParam.urlencode()
+        else:
+            previous_page_url = ""
+        if users.has_next():
+            nextGETParam = request.GET.copy()
+            nextGETParam["page"] = users.next_page_number()
+            next_page_url = "?" + nextGETParam.urlencode()
+        else:
+            next_page_url = ""
+    context = {
+        "facility": facility,
+        "users": users,
+        "groups": groups,
+    }
+    if users:
+        context["pageurls"] = {"next_page": next_page_url, "prev_page": previous_page_url}
+    return context
+
+
 #@post_only
 @authorized_login_required
 def device_data_upload(request, org_id, zone_id, device_id):
