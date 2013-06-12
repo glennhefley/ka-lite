@@ -178,6 +178,8 @@ def create_session(request):
         return JsonResponse({"error": "Client nonce is malformed (must be 32-digit hex)."}, status=500)
     if "client_device" not in data:
         return JsonResponse({"error": "Client device must be specified."}, status=500)
+        
+    # Request for a new session (step 1)
     if "server_nonce" not in data:
         if SyncSession.objects.filter(client_nonce=data["client_nonce"]).count():
             return JsonResponse({"error": "Session already exists; include server nonce and signature."}, status=500)
@@ -193,10 +195,15 @@ def create_session(request):
             return JsonResponse({"error": "Client device matching id could not be found. (id=%s)" % data["client_device"]}, status=500)
         session.server_nonce = uuid.uuid4().hex
         session.server_device = Device.get_own_device()
+        session.server_os = kalite.OS
+        session.server_version = kalite.VERSION
         session.ip = request.META.get("HTTP_X_FORWARDED_FOR", request.META.get('REMOTE_ADDR', ""))
-        if session.client_device.pk == session.server_device.pk:
-            return JsonResponse({"error": "I know myself when I see myself, and you're not me."}, status=500)
+#        import pdb; pdb.set_trace()
+#        if session.client_device.pk == session.server_device.pk:
+#            return JsonResponse({"error": "I know myself when I see myself, and you're not me."}, status=500)
         session.save()
+    
+    # Request for a new session (step 2): verification
     else:
         try:
             session = SyncSession.objects.get(client_nonce=data["client_nonce"])
@@ -211,6 +218,7 @@ def create_session(request):
         session.verified = True
         session.save()
 
+    
     return JsonResponse({
         "session": serializers.serialize("json", [session], client_version=session.client_version, ensure_ascii=False ),
         "signature": session.sign(),
@@ -226,8 +234,16 @@ def destroy_session(data, session):
 @gzip_page
 @require_sync_session
 def device_download(data, session):
-    zone = session.client_device.get_zone()
-    devicezones = list(DeviceZone.objects.filter(zone=zone, device__in=data["devices"]))
+    # For most clients, limit to data ON THE ZONE
+    # TODO(bcipolli): should we throw an error if devices are requested
+    #   that are on another zone?
+    if session.client_device != session.server_device:
+        zone = session.client_device.get_zone()
+        devicezones = list(DeviceZone.objects.filter(zone=zone, device__in=data["devices"]))
+    # You can get anything you want, from yourself.
+    else:
+        devicezones = list(DeviceZone.objects.filter(device__in=data["devices"]))
+        
     devices = [devicezone.device for devicezone in devicezones]
     session.models_downloaded += len(devices) + len(devicezones)
     return JsonResponse({"devices": serializers.serialize("json", devices + devicezones, client_version=session.client_version, ensure_ascii=False)})
@@ -276,7 +292,11 @@ def model_download(data, session):
     if "device_counters" not in data:
         return JsonResponse({"error": "Must provide device counters.", "count": 0}, status=500)
     try:
-        result = model_sync.get_serialized_models(data["device_counters"], zone=session.client_device.get_zone(), include_count=True, client_version=session.client_version)
+        if session.client_device != session.server_device:
+            result = model_sync.get_serialized_models(data["device_counters"], zone=session.client_device.get_zone(), include_count=True, client_version=session.client_version)
+        else:
+            result = model_sync.get_serialized_models(data["device_counters"], zone=None, include_count=True, client_version=session.client_version)
+            
     except Exception as e:
         result = { "error": e.message, "count": 0 }
 
@@ -287,3 +307,29 @@ def model_download(data, session):
 @csrf_exempt
 def test_connection(request):
     return HttpResponse("OK")
+    
+
+def status(request):
+    """This is the data blob used by the local browser (via ajax)
+    to determine the status of the current user,
+    from which it chooses what to display and hide.
+    This allows efficient browser (and django) caching
+    """
+    
+    data = {
+        "is_logged_in": request.is_logged_in,
+        "registered": bool(Settings.get("registered")),
+        "is_admin": request.is_admin,
+        "is_django_user": request.is_django_user,
+        "points": 0,
+    }
+    if "facility_user" in request.session:
+        user = request.session["facility_user"]
+        data["is_logged_in"] = True
+        data["username"] = user.get_name()
+        data["points"] = VideoLog.get_points_for_user(user) + ExerciseLog.get_points_for_user(user)
+    if request.user.is_authenticated():
+        data["is_logged_in"] = True
+        data["username"] = request.user.username
+    return JsonResponse(data)
+

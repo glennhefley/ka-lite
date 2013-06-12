@@ -17,6 +17,7 @@ from django.template.loader import render_to_string
 
 import kalite
 import settings
+from main import topicdata
 from central.models import Organization, OrganizationInvitation, DeletionRecord, get_or_create_user_profile, FeedListing, Subscription
 from central.forms import OrganizationForm, ZoneForm, OrganizationInvitationForm, UploadFileForm
 from securesync.api_client import SyncClient
@@ -288,7 +289,6 @@ def facility_form(request, facility_id, org_id=None, zone_id=None):
             form.save()
             if not facil:
                 facil = None
-#            return HttpResponseRedirect(reverse("facility_usage", kwargs={"org_id": org_id, "zone_id": zone_id, "facility_id": facility_id}))
             return HttpResponseRedirect(reverse("zone_management", kwargs={"org_id": org_id, "zone_id": zone_id}))
     else:
         form = FacilityForm(instance=facil)
@@ -297,7 +297,6 @@ def facility_form(request, facility_id, org_id=None, zone_id=None):
         "zone": zone,
         "facility": facil,
         "form": form,
-#        "zone_id": zone_id,
     }
 
 @authorized_login_required
@@ -306,7 +305,6 @@ def facility_mastery(request, org_id, zone_id, facility_id):
     raise NotImplementedError()
 
 
-from main import topicdata
 @authorized_login_required
 @render_to("shared/group_report.html")
 def group_report(request, facility_id, group_id, org_id=None, zone_id=None):
@@ -344,7 +342,8 @@ def group_report(request, facility_id, group_id, org_id=None, zone_id=None):
             "exercise_logs": [get_object_or_None(ExerciseLog, user=user, exercise_id=ex["name"]) for ex in exercises],
         } for user in users]
     return context
-    
+
+ 
 #@post_only
 @authorized_login_required
 def device_data_upload(request, org_id, zone_id, device_id):
