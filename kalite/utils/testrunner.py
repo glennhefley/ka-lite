@@ -17,7 +17,7 @@ class KALiteTestRunner(DjangoTestSuiteRunner):
         Dependent on how Django works here."""
         
         if not os.environ.get('DJANGO_LIVE_TEST_SERVER_ADDRESS',""):#kwargs.get("liveserver"):
-            os.environ['DJANGO_LIVE_TEST_SERVER_ADDRESS'] = "localhost:8000-8080"
+            os.environ['DJANGO_LIVE_TEST_SERVER_ADDRESS'] = "localhost:9000-9999"
         return super(KALiteTestRunner, self).__init__(*args, **kwargs)
         
     def run_tests(self, test_labels, extra_tests=None, **kwargs):

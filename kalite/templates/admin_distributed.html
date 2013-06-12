@@ -62,6 +62,8 @@ td.title {
             <td class="link"><a href="{% url device_discovery %}">{% trans "Sync stats" %}</a></td>
             <td class="desc">{%trans "Information about syncing," %}</td>
         </tr>
+        
+        {% if am_i_online %}
         <tr>
             <td class="title" colspan="2">
                 <h2>{% trans "(Online) help documents" %}</h2>
@@ -75,6 +77,7 @@ td.title {
             <td class="link"><a href="http://{{central_server_host}}/faq">FAQ</a></td>
             <td class="desc">{%trans "Contains the latest FAQ for troubleshooting" %}</td>
         </tr>
+        {% endif %}
 
         <tr>
             <td class="title" colspan="2">

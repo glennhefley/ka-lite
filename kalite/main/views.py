@@ -14,19 +14,23 @@ from django.contrib import messages
 from django.utils.translation import ugettext as _
 from django.views.decorators.cache import cache_control
 from django.views.decorators.cache import cache_page
+from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
+from django.utils.translation import ugettext as _
 
 import settings
-from utils.topics import slug_key, title_key
 from main import topicdata
-from securesync.models import Facility, FacilityUser,FacilityGroup, DeviceZone, Device
-from models import VideoLog, ExerciseLog, VideoFile
+from main.models import VideoLog, ExerciseLog, VideoFile
 from config.models import Settings
 from securesync.api_client import SyncClient
+from securesync.models import Facility, FacilityUser,FacilityGroup, DeviceZone, Device
+from securesync.views import facility_required
+from shared.views import facility_users_context, group_report_context
 from utils import topic_tools
 from utils.jobs import force_job
 from utils.decorators import require_admin
-from securesync.views import facility_required
-from shared.views import facility_users_context, group_report_context
+from utils.videos import video_connection_is_available
+from utils.internet import am_i_online
+from utils.topics import slug_key, title_key
 
 
 def splat_handler(request, splat):
@@ -206,6 +210,7 @@ def easy_admin(request):
     context = {
         "wiki_url" : settings.CENTRAL_WIKI_URL,
         "central_server_host" : settings.CENTRAL_SERVER_HOST,
+        "am_i_online": am_i_online(settings.CENTRAL_WIKI_URL, allow_redirects=False), 
     }
     return context
 
@@ -226,6 +231,7 @@ def update(request):
     context = {
         "languages": languages,
         "default_language": default_language,
+        "am_i_online": video_connection_is_available(),
     }
     return context
 
