@@ -4,7 +4,6 @@ from main.models import LanguagePack
 
 def custom(request):
     return {
-        "base_template": "base_distributed.html",
         "central_server_host": settings.CENTRAL_SERVER_HOST,
         "CONTENT_ROOT": settings.CONTENT_ROOT,
         "CONTENT_URL": settings.CONTENT_URL,

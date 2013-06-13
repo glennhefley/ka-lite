@@ -8,8 +8,8 @@
 <link rel='stylesheet' type='text/css' href='{% static "css/current_users.css" %}'>
 {% endblock headcss %}
 
-{% block content %}
+
+{% block inner_content %}
 <div id="content">
-    {% include "shared/titlebar.html" with download_test="False" %}
     {% include "user_list_body.html" %}
-{% endblock content %}
+{% endblock inner_content %}

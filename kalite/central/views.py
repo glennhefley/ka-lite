@@ -23,7 +23,7 @@ from django.core import serializers
 import kalite
 import settings
 from central.models import Organization, OrganizationInvitation, DeletionRecord, get_or_create_user_profile, FeedListing, Subscription
-from central.forms import OrganizationForm, ZoneForm, OrganizationInvitationForm, UploadFileForm
+from central.forms import OrganizationForm, OrganizationInvitationForm, UploadFileForm
 from securesync.api_client import SyncClient
 from securesync.models import Facility, FacilityUser, FacilityGroup, DeviceZone, Device
 from securesync.models import Zone, SyncSession, ZoneInstallCertificate

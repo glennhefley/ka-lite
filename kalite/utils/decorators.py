@@ -44,7 +44,12 @@ def distributed_server_only(handler):
 
 
 def authorized_login_required(handler):
-    @login_required
+    """A generic function that determines whether a user has permissions to view a page.
+    
+    Central server: this is by organization permissions.
+    Distributed server: you have to be an admin.
+    """
+    
     def wrapper_fn(request, *args, **kwargs):
         user = request.user
         assert not user.is_anonymous(), "Wrapped by login_required!"
@@ -96,4 +101,7 @@ def authorized_login_required(handler):
     
         # Made it through, we're safe!
         return handler(request, *args, **kwargs)
-    return wrapper_fn
+        
+    
+    return wrapper_fn if settings.CENTRAL_SERVER else require_admin(handler)
+    

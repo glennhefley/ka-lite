@@ -2,10 +2,8 @@
 
 {% block title %}{{ zone.name }} - Zone Management Console{% endblock title %}
 
-{% block content %}
+{% block inner_content %}
 <div id="zone_container">
-    {% include "shared/titlebar.html" %}
-
     <style>
     h2 { 
         margin-bottom: 25px;
@@ -41,4 +39,4 @@
 
     </form>
 
-{% endblock content %}
+{% endblock inner_content %}

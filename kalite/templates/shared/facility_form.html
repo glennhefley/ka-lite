@@ -157,9 +157,7 @@ function saveZoom(zm) {
 
 {% endblock %}
 
-{% block content %}
-    {% include "shared/titlebar.html" %}
-
+{% block inner_content %}
     <h2>{% if form.instance.id %}{% trans "Edit a facility" %}{% else %}{% trans "Add a new Facility" %}{% endif %}</h2>
     <div id="id_direc_no_map">{% trans "Please enter the following information about your facility. Please enter a detailed address, because knowing where you are in the world allows us to better plan for future deployments and partnerships." %}</div>
     <div id="id_direc_map">
@@ -177,4 +175,4 @@ function saveZoom(zm) {
     {% trans "Save facility" as value %}
     <input type="submit" value="{{ value }}" class="submit"/>
     </form>
-{% endblock content %}
+{% endblock inner_content %}

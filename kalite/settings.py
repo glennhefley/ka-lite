@@ -98,7 +98,7 @@ TEMPLATE_CONTEXT_PROCESSORS = (
     "django.core.context_processors.media",
     "django.contrib.messages.context_processors.messages",
     "django.core.context_processors.request",
-    "%s.custom_context_processors.custom" % ("central" if CENTRAL_SERVER else "main"),
+    "shared.custom_context_processors.custom",
 )
 
 

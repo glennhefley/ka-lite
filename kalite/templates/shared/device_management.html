@@ -1,9 +1,17 @@
 {% extends "shared/base_management.html" %}
 
-{% block content %}
-<div id="zone_container">
+{% load i18n %}
 
-    {% include "shared/titlebar.html" %}
+{% if not is_central %}
+    {% block buttons %}
+        <li>
+            <a class="green_button" href="javascript:alert('NYI; sorry!');">{% trans "Sync device now!" %}</a>
+        </li>
+    {% endblock buttons %}
+{% endif %}
+
+{% block inner_content %}
+<div id="zone_container">
         
     <div class="sync_sessions">
         <h2>Sync Sessions</h2>
@@ -34,4 +42,4 @@
         {% endif %}
     </div>
 
-{% endblock content %}
+{% endblock inner_content %}
