@@ -14,7 +14,8 @@ import kalite
 import crypto
 import settings
 import model_sync
-from models import *
+from securesync.models import *
+from main.models import VideoLog, ExerciseLog
 from config.models import Settings
 
 
