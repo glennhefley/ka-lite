@@ -164,9 +164,6 @@ if CENTRAL_SERVER:
 else:
     INSTALLED_APPS     += ("main"),
 
-    if DEBUG:
-        INSTALLED_APPS     += ("loadtesting"),
-
     MIDDLEWARE_CLASSES += (
         "securesync.middleware.DBCheck",
         "securesync.middleware.AuthFlags",
