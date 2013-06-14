@@ -1,0 +1,21 @@
+# Design:
+#
+# urls/views: 
+# 1. Static 3-5 page view
+# 2. in JS, get the particular sets of users (facility/group/user), topics (topic path), and x/y data (% mastery, effort, attempts, etc) from the querystring
+# 3. Do a POST request to the API, to get that data.
+# 4. Render the data client-side.
+# 
+# But easier way to start:
+# 1. Dyanamic 3-5 page view
+# 2. In django, get the particular set of users, topics, and x/y data from the querystring (request object)
+# 3. Skip the API
+# 4. Render the data server-side (either directly as HTML, or as javascript arrays)
+#
+#
+# api_urls/api_views:
+# 1. Receive set of users, topics, and x/y data as POST objects (forms.py)
+# 2. Reply with a json blob of data, as well as labels for x and y values (and labels?)
+
+
+

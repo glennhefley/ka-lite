@@ -162,7 +162,7 @@ if CENTRAL_SERVER:
     AUTH_PROFILE_MODULE     = 'central.UserProfile'
 
 else:
-    INSTALLED_APPS     += ("main", "kalite.coachreports")
+    INSTALLED_APPS     += ("main", "coachreports")
 
     MIDDLEWARE_CLASSES += (
         "securesync.middleware.DBCheck",

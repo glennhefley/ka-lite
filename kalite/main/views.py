@@ -24,7 +24,7 @@ from config.models import Settings
 from securesync.api_client import SyncClient
 from securesync.models import Facility, FacilityUser,FacilityGroup, DeviceZone, Device
 from securesync.views import facility_required
-from shared.views import facility_users_context, group_report_context
+from shared.views import facility_users_context
 from utils import topic_tools
 from utils.jobs import force_job
 from utils.decorators import require_admin
@@ -235,16 +235,6 @@ def update(request):
     }
     return context
 
-
-@require_admin
-@facility_required
-@render_to("coach_reports.html")
-def coach_reports(request, facility):
-    return group_report_context(
-        facility_id=facility.id, 
-        group_id=request.REQUEST.get("group", ""), 
-        topic_id=request.REQUEST.get("topic", ""), 
-    )
 
 @require_admin
 @facility_required

@@ -1,0 +1,12 @@
+{% extends 'base_distributed.html' %}
+
+{% load staticfiles %}
+
+{% block coachreports_active %}active{% endblock coachreports_active %}
+
+{% block headcss %}
+<link rel='stylesheet' type='text/css' href='{% static "css/coach_reports.css" %}'>
+{% endblock headcss %}
+
+{% comment "Individual pages should implement content %}
+{% endcomment %}
