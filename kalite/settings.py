@@ -155,7 +155,7 @@ if CENTRAL_SERVER:
     AUTH_PROFILE_MODULE     = 'central.UserProfile'
 
 else:
-    INSTALLED_APPS     += ("main"),
+    INSTALLED_APPS     += ("main", "kalite.coachreports")
 
     if DEBUG:
         INSTALLED_APPS     += ("loadtesting"),

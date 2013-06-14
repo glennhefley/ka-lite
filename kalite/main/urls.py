@@ -2,6 +2,7 @@ from django.http import HttpResponseRedirect
 from django.conf.urls.defaults import patterns, include, url
 from django.contrib import admin
 
+import coachreports.urls
 import securesync.urls
 import shared.urls
 from kalite import settings
@@ -34,11 +35,13 @@ urlpatterns += patterns('',
 
 urlpatterns += patterns('main.views',
     url(r'^$', 'homepage', {}, 'homepage'),
-    url(r'^coachreports/$', 'coach_reports', {}, 'coach_reports'),
     url(r'^easyadmin/$', 'easy_admin', {}, 'easy_admin'),
     url(r'^exercisedashboard/$', 'exercise_dashboard', {}, 'exercise_dashboard'),
     url(r'^update/$', 'update', {}, 'update'),
     url(r'^userlist/$', 'user_list', {}, 'user_list'),
+
+    url(r'^coachreports/', include(coachreports.urls)),
+    #url(r'^coachreports/$', 'coach_reports', {}, 'coach_reports'),
 
     # Management: Zone, facility, device
     url(r'^management/zone/$', 'zone_discovery', {}, 'zone_discovery'), # only one zone, so make an easy way to access it
