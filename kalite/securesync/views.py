@@ -170,7 +170,7 @@ def facility_edit(request, id=None):
 
 
 @distributed_server_only
-@render_to("shared/facility_selection.html")
+@render_to("securesync/facility_selection.html")
 def facility_selection(request):
     facilities = Facility.objects.all()
     context = {"facilities": facilities}

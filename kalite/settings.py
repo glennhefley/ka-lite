@@ -4,6 +4,13 @@ import logging
 import sys
 import tempfile
 
+# suppress warnings here.
+try:
+    import warnings
+    warnings.simplefilter("ignore") # any other filter was ineffecual or threw an error
+except:
+    pass
+
 try:
     from local_settings import *
     import local_settings
@@ -156,9 +163,6 @@ if CENTRAL_SERVER:
 
 else:
     INSTALLED_APPS     += ("main", "kalite.coachreports")
-
-    if DEBUG:
-        INSTALLED_APPS     += ("loadtesting"),
 
     MIDDLEWARE_CLASSES += (
         "securesync.middleware.DBCheck",
