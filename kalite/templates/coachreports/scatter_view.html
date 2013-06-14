@@ -1,0 +1,23 @@
+{% load my_filters %}
+
+{% block content %}
+    {{ form }}
+    <br/>
+    ?
+    <br/>
+    {{ data }}
+
+    <table>
+        <tr>
+            <th>users</th>
+            <th>xaxis: {{form.xaxis}}</th>
+            <th>yaxis: {{form.yaxis}}</th>
+        </tr>
+    {% for user, vals in data.data.items %}
+        <tr>
+            <td>{{ data.users|get_item:user }}</td>
+            <td>{{ vals|get_item:form.xaxis }}</td>
+            <td>{{ vals|get_item:form.yaxis }}</td>
+    {% endfor %}
+    </table>
+{% endblock content %}

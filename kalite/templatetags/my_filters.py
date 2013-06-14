@@ -18,6 +18,10 @@ class RangeNode(Node):
         context[self.context_name] = range(*resolved_ranges)
         return ""
         
+@register.filter
+def get_item(dictionary, key):
+    return dictionary.get(key)
+    
 @register.tag
 def mkrange(parser, token):
     """
