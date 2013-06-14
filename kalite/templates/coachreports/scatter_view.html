@@ -1,12 +1,9 @@
 {% load my_filters %}
 
 {% block content %}
-    {{ form }}
-    <br/>
-    ?
-    <br/>
-    {{ data }}
-
+<style>
+div { margin-top: 25px; }
+</style>
     <table>
         <tr>
             <th>users</th>
@@ -20,4 +17,13 @@
             <td>{{ vals|get_item:form.yaxis }}</td>
     {% endfor %}
     </table>
+    
+<div id="raw">
+Form fields: <br/>
+   {{ form }}
+</div>
+<div>
+Data blob: <br/>
+    {{ data }}
+</div>
 {% endblock content %}
