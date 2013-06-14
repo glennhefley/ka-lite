@@ -16,7 +16,6 @@ from coachreports.forms import DataForm
 
 
 #@require_admin
-#@facility_required
 @render_to("coachreports/scatter_view.html")
 def scatter(request):
     # fake data
@@ -28,20 +27,13 @@ def scatter(request):
     
 
 @require_admin
-@facility_required
-@render_to("coachreports/coach_reports.html")
-def coach_reports(request, facility):
+@render_to("coachreports/landing_page.html")
+def landing_page(request):
 
-
-    return group_report_context(
-        facility_id=facility.id, 
-        group_id=request.REQUEST.get("group", ""), 
-        topic_id=request.REQUEST.get("topic", ""), 
-    )
-
+    return {
+    }
 
 @require_admin
-@facility_required
 @render_to("coachreports/scatter.html")
 def scatter_data(request, facility, subject_id, topic_id=None, exercise_id=None, xaxis=None, yaxis=None):
     groups = FacilityGroup.objects.filter(facility=facility)
