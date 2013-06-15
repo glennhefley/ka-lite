@@ -1,9 +1,35 @@
-{% extends 'coachreports/base.html' %}
+{% extends "coachreports/base.html" %}
 
-{% load i18n %}
-{% block title %}Coach Reports{% endblock title %}
+{% load my_filters %}
 
 {% block content %}
-    <div class="facility"><h2>{% blocktrans %}Coach Reports for {{ facility }}{% endblocktrans %} (<a href="?facility=select">{% trans "Change Facility" %}</a>)</h2></div>
-    {% include "coachreports/coach_reports_body.html" %}
+<style>
+#table div { margin-top: 25px; }
+</style>
+<div id="table">
+    <div>
+        <table>
+            <tr>
+                <th>users</th>
+                <th>xaxis: {{form.xaxis}}</th>
+                <th>yaxis: {{form.yaxis}}</th>
+            </tr>
+        {% for user, vals in data.data.items %}
+            <tr>
+                <td>{{ data.users|get_item:user }}</td>
+                <td>{{ vals|get_item:form.xaxis }}</td>
+                <td>{{ vals|get_item:form.yaxis }}</td>
+        {% endfor %}
+        </table>
+    </div>
+
+    <div id="raw">
+    Form fields: <br/>
+       {{ form }}
+    </div>
+    <div>
+    Data blob: <br/>
+        {{ data }}
+    </div>
+</div>
 {% endblock content %}

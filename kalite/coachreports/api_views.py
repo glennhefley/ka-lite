@@ -39,9 +39,9 @@ def compute_data(types, who, where):
     videos = None
 
     # Initialize an empty dictionary of data, video logs, exercise logs, for each user
-    data     = dict(zip([w.id for w in who], (dict(),)*len(who)))
-    vid_logs = dict(zip([w.id for w in who], (None,)*len(who)))
-    ex_logs  = dict(zip([w.id for w in who], (None,)*len(who)))
+    data     = dict(zip([w.id for w in who], [dict() for i in range(len(who))]))
+    vid_logs = dict(zip([w.id for w in who], [None   for i in range(len(who))]))
+    ex_logs  = dict(zip([w.id for w in who], [None   for i in range(len(who))]))
 
     # Set up queries (but don't run them), so we have really easy aliases.
     #   Only do them if they haven't been done yet (tell this by passing in a value to the lambda function)      
@@ -54,13 +54,13 @@ def compute_data(types, who, where):
     query_videos    = partial(lambda v,sf: v if v is not None else [vid["youtube_id"] for vid in filter(sf, topicdata.NODE_CACHE['Video'].values())],sf=search_fun)
 
     # Exercise log and video log dictionary (key: user)
-    query_exlogs    = lambda u,ex,el: el if el is not None else ExerciseLog.objects.filter(user=u, exercise_id__in=ex)
+    query_exlogs    = lambda u,ex,el:  el if el is not None else ExerciseLog.objects.filter(user=u, exercise_id__in=ex)
     query_vidlogs   = lambda u,vid,vl: vl if vl is not None else VideoLog.objects.filter(user=u, youtube_id__in=vid)
     
     # No users, don't bother.
     if len(who)>0:
         for type in (types if not hasattr(types,"lower") else [types]): # convert list from string, if necessary
-            if type in data[data.keys()[0]]:
+            if type in data[data.keys()[0]]: # if the first user has it, then all do; no need to calc again.
                 continue
             
             if type == "pct_mastery":
@@ -69,15 +69,15 @@ def compute_data(types, who, where):
                 # Efficient query out, spread out to dict
                 # ExerciseLog.filter(user__in=who, exercise_id__in=exercises).order_by("user.id")
                 for user in data.keys():
-                    ex_logs[user] = query_exlogs(user, exercises, ex_logs[user])
-                    data[user][type] = sum([el.complete for el in ex_logs[user]])/ex_logs[user].count()
+                    ex_logs[user] = query_exlogs(user, exercises, ex_logs[user]) 
+                    data[user][type] = sum([el.complete for el in ex_logs[user]])/float(ex_logs[user].count())
 
             elif type == "effort":
                 if "ex.attempts" in data[data.keys()[0]] and "vid.total_seconds_watched" in data[data.keys()[0]]:
                     for user in data.keys():
                         total_attempts = sum(data[user]["ex.attempts"].values())
                         total_seconds_watched = sum(data[user]["vid.total_seconds_watched"].values())
-                        data[user][type] = total_attempts/10 + total_seconds_watched/750
+                        data[user][type] = total_attempts/10. + total_seconds_watched/750.
                 else:
                     types += ["ex.attempts", "vid.total_seconds_watched", "effort"]
             
@@ -87,15 +87,16 @@ def compute_data(types, who, where):
                 videos = query_videos(videos)
                 for user in data.keys():
                     vid_logs[user] = query_vidlogs(user, videos, vid_logs[user])
-                    data[user][type] = dict(zip(videos, [getattr(v, type[4:]) for v in vid_logs[user]]))
+                    data[user][type] = dict([(v.youtube_id, getattr(v, type[4:])) for v in vid_logs[user]])
         
             # Just querying out data directly: Exercise
             elif type.startswith("ex.") and type[3:] in [f.name for f in ExerciseLog._meta.fields]:
                 exercises = query_exercises(exercises)
                 for user in data.keys():
                     ex_logs[user] = query_exlogs(user, exercises, ex_logs[user])
-                    data[user][type] = dict(zip(exercises, [getattr(e,type[3:]) for e in ex_logs[user]]))
-        
+                    data[user][type] = dict([(el.exercise_id, getattr(el,type[3:])) for el in ex_logs[user]])
+            
+            # Unknown requested quantity     
             else:
                 raise Exception("Unknown type: %s" % type)
 

@@ -62,18 +62,6 @@
     padding: 0;
 }
 
-.topic-list {
-    padding: 5px 0 0 0;
-    font-size: 24px;
-    font-family: "MuseoSans500", sans-serif;
-}
-
-.topic-list a {
-    display: block;
-    padding: 0 0 8px 40px;
-    font-size: 18px;
-}
-
 a:hover, a:hover .suggested-action-title {
     color: #2F92A5!important;
 }
@@ -83,17 +71,6 @@ a:hover, a:hover .suggested-action-title {
 }
 
 </style>
-{% endblock headcss %}
-
-{% block headjs %}
-{% if settings.AUTO_LOAD_TEST %}
-<script>
-if (window.parent.frames.length === 0) {
-    window.location = "/loadtesting/";
-}
-</script>
-{% endif %}
-{% endblock headjs %}
 
 {% block content %}
 <div class="front-page">
