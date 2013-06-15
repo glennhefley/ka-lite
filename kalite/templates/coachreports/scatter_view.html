@@ -20,26 +20,6 @@ google.loader.writeLoadTag("script", "/static/js/google.corechart.js", false);
 </script>
 
 <script type="text/javascript">
-function drawDefaultChart() {
-
-    var dataTable = new google.visualization.DataTable();
-      dataTable.addColumn('number', '{{ form.xaxis }}');
-      dataTable.addColumn('number', '{{ form.yaxis }}');
-      dataTable.addColumn({'type': 'string', 'role': 'tooltip', 'p': {'html': true}});
-
-    dataTable.addRows([
-    {% for user, vals in data.data.items %}
-    [{{ vals|get_item:form.xaxis }}, {{ vals|get_item:form.yaxis }}, '<div><a href=""><u><b>{{ data.users|get_item:user }}</b></u></a></div>'],
-    {% endfor %}
-    ]);
-
-    var options = {
-      title: '{{ form.xaxis }} vs. {{ form.yaxis }} comparison',
-      hAxis: {title: '{{ form.xaxis }}', minValue: 0, maxValue: 1},
-      vAxis: {title: '{{ form.yaxis }}', minValue: 0, maxValue: 50},
-    };
-    drawChart(dataTable, options);
-}
 
 function drawChart(dataTable, options) {
     options["legend"] = 'none';
@@ -75,13 +55,42 @@ function json2dataTable(json, xaxis, yaxis) {
     for (var user in json['data']) {
         var xdata = obj2num(json['data'][user][xaxis]);
         var ydata = obj2num(json['data'][user][yaxis]);
-        dataTable.addRows([[xdata, ydata, user2tooltip(json, user)]]);
+        dataTable.addRows([[xdata, ydata, user2tooltip(json, user, xaxis, yaxis)]]);
     }
     return dataTable;
   }
   
-function user2tooltip(json, user) {
-    return "<div class='tooltip'>" + json['users'][user] + "</div>"
+function user2tooltip(json, user, xaxis, yaxis) {
+    var axes = [xaxis, yaxis];
+    var tooltip = "<div class='tooltip'>";
+    tooltip += "<div class='username'>" + json['users'][user] + "</div>";
+    for (var ai in axes) {
+    
+        // Some data don't have details, they're derived.
+        var row = json['data'][user][axes[ai]];
+        if (typeof row == 'number')
+            continue;
+
+        // Get the prefix and stat name.
+        stat_types = axes[ai].split(":");
+        if (stat_types.length < 2)  // should never actually hit this
+            stat_types = ["[Derived]", "[Derived]"];
+        
+        tooltip += "<table class='detail'>";
+        tooltip += "<tr><th>" + (stat_types[0] == "ex" ? "Exercise" : "Video") + "</th><th>" + stat_types[1] + "</th>";
+        for (var d in row) {
+            if (stat_types[0] == "ex")
+                var url = "/videos/?youtube_id=" + d;
+            else
+                var url = "/exercise/" + d; // need to funnel in the topic_path here
+            
+            tooltip += "<tr><td><a href='" + url + "'>" + d + "</a></td>" + "<td>" + row[d] + "</td></tr>";
+        }
+        tooltip += "</table>";
+    }
+    tooltip += "</div>"
+    
+    return tooltip  
 }  
 
 function drawJsonChart(json, xaxis, yaxis) {
@@ -123,6 +132,19 @@ function showJsonData(topic_path, xaxis, yaxis) {
 <style>
 #table div { margin-top: 25px; }
 .tooltip { padding: 10px; }
+
+.username { font-weight: bold; }
+
+table.detail {
+    border: 1px solid green;
+}
+
+table.detail th {
+    background-color: #aaf;
+}
+table.detail td {
+    background-color: #ccf;
+}
 </style>
 {% endblock headcss %}
 

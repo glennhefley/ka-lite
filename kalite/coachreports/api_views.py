@@ -120,8 +120,8 @@ def get_data_form(request):
         'yaxis':       request.REQUEST.get('yaxis',       "effort"  ),
     })
 
+
 @csrf_exempt
-@render_to("test.html")
 def api_data(request):
 #    if request.method != "POST":
 #        return HttpResponseForbidden("%s request not allowed." % request.method)
@@ -172,5 +172,10 @@ def api_data(request):
     
     
     
+@csrf_exempt
+def api_friendly_names(request):
+    """api_data returns raw data with identifiers.  This endpoint is a generic endpoint
+    for mapping IDs to friendly names."""
     
     
+    return None

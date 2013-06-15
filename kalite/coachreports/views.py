@@ -41,7 +41,9 @@ def get_api_data(request, form):
 
     form = get_data_form(request)
     
-    # Make the api request on the server-side
+    # Make the api request on the server-side,
+    #   this is a good way to test the API while under development
+    #   (rather than calling the function directly)
     response = requests.post(api_url, data=form.data)
     if response.status_code != 200:
         raise StatusException(message=response.text, status_code=response.status_code)
@@ -53,6 +55,7 @@ def get_api_data(request, form):
 @render_to("coachreports/scatter_view.html")
 def scatter_view(request):
 
+    # Get the form, and retrieve the API data
     form = get_data_form(request)
     try:
         data = get_api_data(request, form)
@@ -61,6 +64,13 @@ def scatter_view(request):
             return HttpResponseNotFound(se.message)
         else:
             return HttpResponseServerError(se.message)
+    
+    
+    # The API tries to be lean and mean with it's response objects and text,
+    #   and so mostly sends unique identifiers of objects, rather than
+    #   full data / names.
+    #
+    # Let's expose an end-point for retrieving user-friendly names
     
     return {
         "form": form.data,
