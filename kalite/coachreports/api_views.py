@@ -70,27 +70,27 @@ def compute_data(types, who, where):
                 # ExerciseLog.filter(user__in=who, exercise_id__in=exercises).order_by("user.id")
                 for user in data.keys():
                     ex_logs[user] = query_exlogs(user, exercises, ex_logs[user]) 
-                    data[user][type] = sum([el.complete for el in ex_logs[user]])/float(ex_logs[user].count())
-
+                    data[user][type] = 0 if not ex_logs[user] else 100.*sum([el.complete for el in ex_logs[user]])/float(ex_logs[user].count())
+                    
             elif type == "effort":
-                if "ex.attempts" in data[data.keys()[0]] and "vid.total_seconds_watched" in data[data.keys()[0]]:
+                if "ex:attempts" in data[data.keys()[0]] and "vid:total_seconds_watched" in data[data.keys()[0]]:
                     for user in data.keys():
-                        total_attempts = sum(data[user]["ex.attempts"].values())
-                        total_seconds_watched = sum(data[user]["vid.total_seconds_watched"].values())
+                        total_attempts = sum(data[user]["ex:attempts"].values())
+                        total_seconds_watched = sum(data[user]["vid:total_seconds_watched"].values())
                         data[user][type] = total_attempts/10. + total_seconds_watched/750.
                 else:
-                    types += ["ex.attempts", "vid.total_seconds_watched", "effort"]
+                    types += ["ex:attempts", "vid:total_seconds_watched", "effort"]
             
 
             # Just querying out data directly: Exercise
-            elif type.startswith("vid.") and type[4:] in [f.name for f in VideoLog._meta.fields]:
+            elif type.startswith("vid:") and type[4:] in [f.name for f in VideoLog._meta.fields]:
                 videos = query_videos(videos)
                 for user in data.keys():
                     vid_logs[user] = query_vidlogs(user, videos, vid_logs[user])
                     data[user][type] = dict([(v.youtube_id, getattr(v, type[4:])) for v in vid_logs[user]])
         
             # Just querying out data directly: Exercise
-            elif type.startswith("ex.") and type[3:] in [f.name for f in ExerciseLog._meta.fields]:
+            elif type.startswith("ex:") and type[3:] in [f.name for f in ExerciseLog._meta.fields]:
                 exercises = query_exercises(exercises)
                 for user in data.keys():
                     ex_logs[user] = query_exlogs(user, exercises, ex_logs[user])
@@ -98,7 +98,7 @@ def compute_data(types, who, where):
             
             # Unknown requested quantity     
             else:
-                raise Exception("Unknown type: %s" % type)
+                raise Exception("Unknown type: %s not in %s" % (type, str([f.name for f in ExerciseLog._meta.fields])))
 
     return {
         "data": data,
@@ -108,6 +108,17 @@ def compute_data(types, who, where):
     }
 
 
+def get_data_form(request):
+
+    # fake data
+    return DataForm(data = { # the following defaults are for debug purposes only
+        'facility_id': request.REQUEST.get('facility_id', Facility.objects.filter(name__contains="Wilson Elementary")[0].id),
+        'group_id':    request.REQUEST.get('group_id',    ""),#FacilityGroup.objects.all()[0].id),
+        'user':        request.REQUEST.get('user_id',     ""),
+        'topic_path':  request.REQUEST.get('topic_path',  "/topics/math/arithmetic/multiplication-division/"),
+        'xaxis':       request.REQUEST.get('xaxis',       "pct_mastery"),
+        'yaxis':       request.REQUEST.get('yaxis',       "effort"  ),
+    })
 
 @csrf_exempt
 @render_to("test.html")
@@ -116,7 +127,7 @@ def api_data(request):
 #        return HttpResponseForbidden("%s request not allowed." % request.method)
     
     # Get the request form
-    form = DataForm(data=request.REQUEST)
+    form = get_data_form(request)#(data=request.REQUEST)
 
     # Query out the data: who?
     if form.data.get("user_id"):
@@ -129,7 +140,7 @@ def api_data(request):
         users = FacilityUser.objects.filter(group=form.data.get("group_id"))
     elif form.data.get("facility_id"):
         facility = get_object_or_404(Facility, id=form.data.get("facility_id"))
-        groups = FacilityGroup.objects.filter(facility__in=form.data.get("facility_id"))
+        groups = FacilityGroup.objects.filter(facility__in=[form.data.get("facility_id")])
         users = FacilityUser.objects.filter(group__in=groups)
     else:
         return HttpResponseNotFound("Did not specify facility, group, nor user.")
@@ -147,7 +158,13 @@ def api_data(request):
         "users": dict( zip( [u.id for u in users],
                             ["%s, %s" % (u.first_name, u.last_name) for u in users]
                      )),
-        "groups": [g.name for g in groups],
+        "groups":  dict( zip( [g.id for g in groups],
+                             dict(zip(["id", "name"], [(g.id, g.name) for g in groups])),
+                      )),
+        "facility": None if not facility else {
+            "name": facility.name,
+            "id": facility.id,
+        }
     }
     
     # Now we have data, stream it back

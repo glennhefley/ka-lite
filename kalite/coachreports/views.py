@@ -19,20 +19,21 @@ from main import topicdata
 
 
 class StatusException(Exception):
-    def __init__(message, status_code):
+    def __init__(self, message, status_code):
         super(StatusException, self).__init__(message)
-        self.args = status_code
+        self.args = (status_code,)
+        self.status_code = status_code
 
 def get_data_form(request):
 
     # fake data
     return DataForm(data = { # the following defaults are for debug purposes only
-        'facility_id': request.REQUEST.get('facility_id', Facility.objects.filter(name__contains="Wilson Elementary")[0].id),
-        'group_id':    request.REQUEST.get('group_id',    FacilityGroup.objects.all()[0].id),
-        'user':        request.REQUEST.get('user_id',     ""),
-        'topic_path':  request.REQUEST.get('topic_path',  "/topics/math/arithmetic/multiplication-division/"),
-        'xaxis':       request.REQUEST.get('xaxis',       "pct_mastery"),
-        'yaxis':       request.REQUEST.get('yaxis',       "effort"  ),
+        'facility_id': request.REQUEST.get('facility_id'),
+        'group_id':    request.REQUEST.get('group_id'),
+        'user':        request.REQUEST.get('user_id'),
+        'topic_path':  request.REQUEST.get('topic_path'),#/topics/math/arithmetic/multiplication-division/"),
+        'xaxis':       request.REQUEST.get('xaxis'),#pct_mastery"),
+        'yaxis':       request.REQUEST.get('yaxis'),#effort"  ),
     })
 
 def get_api_data(request, form):
@@ -55,7 +56,7 @@ def scatter_view(request):
     form = get_data_form(request)
     try:
         data = get_api_data(request, form)
-    except StatusExcetion as se:
+    except StatusException as se:
         if se.status_code == 404:
             return HttpResponseNotFound(se.message)
         else:
@@ -74,7 +75,7 @@ def table_view(request):
     form = get_data_form(request)
     try:
         data = get_api_data(request, form)
-    except StatusExcetion as se:
+    except StatusException as se:
         if se.status_code == 404:
             return HttpResponseNotFound(se.message)
         else:
