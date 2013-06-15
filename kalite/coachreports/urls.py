@@ -4,7 +4,12 @@ import coachreports.api_urls
 
 urlpatterns = patterns('coachreports.views',
     url(r'^$', 'landing_page', {}, 'coach_reports'),
-    url(r'^test/$', 'scatter', {}, 'scatter'),
+    url(r'^scatter/$', 'scatter_view', {}, 'scatter_view'),
+    url(r'^table/$',   'table_view', {}, 'table_view'),
+
+    url(r'^old/$', 'old_coach_report', {}, 'old_coach_report'),
+    url(r'^old/(?P<report_type>\w+)/$', 'old_coach_report', {}, 'old_coach_report'),
+
 #    url(r'(?P<subject_id>\w+)/(?P<topic_id>\w+)/mastery$',  'coach_reports', {}, 'coach_reports'),
 #    url(r'(?P<student_id>\w+)/scatter$', 'scatter_data', {}, 'scatter_data'),
 #    url(r'(?P<subject_id>\w+)/(?P<topic_id>\w+)/effort$',  'scatter_data', {}, 'scatter_effort'),

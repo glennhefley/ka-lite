@@ -132,7 +132,7 @@ def api_data(request):
         groups = FacilityGroup.objects.filter(facility__in=form.data.get("facility_id"))
         users = FacilityUser.objects.filter(group__in=groups)
     else:
-        return HttpResponseNotFound("Did not specify facility, group, nor user.", status_code=404)
+        return HttpResponseNotFound("Did not specify facility, group, nor user.")
 
     # Query out the data: where?
     if not form.data.get("topic_path"):

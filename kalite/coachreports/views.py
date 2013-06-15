@@ -15,14 +15,18 @@ from utils.decorators import require_admin
 from securesync.views import facility_required
 from shared.views import group_report_context
 from coachreports.forms import DataForm
+from main import topicdata
 
 
-#@require_admin
-@render_to("coachreports/scatter_view.html")
-def scatter(request):
+class StatusException(Exception):
+    def __init__(message, status_code):
+        super(StatusException, self).__init__(message)
+        self.args = status_code
+
+def get_data_form(request):
 
     # fake data
-    form = DataForm(data = { # the following defaults are for debug purposes only
+    return DataForm(data = { # the following defaults are for debug purposes only
         'facility_id': request.REQUEST.get('facility_id', Facility.objects.filter(name__contains="Wilson Elementary")[0].id),
         'group_id':    request.REQUEST.get('group_id',    FacilityGroup.objects.all()[0].id),
         'user':        request.REQUEST.get('user_id',     ""),
@@ -31,29 +35,124 @@ def scatter(request):
         'yaxis':       request.REQUEST.get('yaxis',       "effort"  ),
     })
 
+def get_api_data(request, form):
     api_url = "http%s://%s%s" % ("s" if request.is_secure() else "", request.get_host(), reverse("coachreports.api_views.api_data"))
 
+    form = get_data_form(request)
+    
     # Make the api request on the server-side
     response = requests.post(api_url, data=form.data)
-
-    if response.status_code == 404:
-        return HttpResponseNotFound(response.text)
-    elif response.status_code != 200:
-        return HttpResponseServerError(response.text)
+    if response.status_code != 200:
+        raise StatusException(message=response.text, status_code=response.status_code)
 
     data = json.loads(response.text)
+    return data 
+
+#@require_admin
+@render_to("coachreports/scatter_view.html")
+def scatter_view(request):
+
+    form = get_data_form(request)
+    try:
+        data = get_api_data(request, form)
+    except StatusExcetion as se:
+        if se.status_code == 404:
+            return HttpResponseNotFound(se.message)
+        else:
+            return HttpResponseServerError(se.message)
     
     return {
         "form": form.data,
         "data": data,
     }        
-    
 
-@require_admin
+
+#@require_admin
+@render_to("coachreports/table_view.html")
+def table_view(request):
+
+    form = get_data_form(request)
+    try:
+        data = get_api_data(request, form)
+    except StatusExcetion as se:
+        if se.status_code == 404:
+            return HttpResponseNotFound(se.message)
+        else:
+            return HttpResponseServerError(se.message)
+    
+    return {
+        "form": form.data,
+        "data": data,
+    }        
+
+
+#@require_admin
 @render_to("coachreports/landing_page.html")
 def landing_page(request):
 
     return {
     }
 
+
+
+#@require_admin
+@facility_required
+@render_to("coachreports/old2.html")
+def old_coach_report(request, facility, report_type="exercise"):
+    import re, settings
+    from utils.topic_tools import get_topic_videos, get_topic_exercises
+    
+    # Get a list of topics (sorted) and groups
+    topics = topicdata.EXERCISE_TOPICS["topics"].values()
+    topics = sorted(topics, key = lambda k: (k["y"], k["x"]))
+    groups = FacilityGroup.objects.filter(facility=facility)
+    paths = dict((key, val["path"]) for key, val in topicdata.NODE_CACHE["Exercise"].items())
+    context = {
+        "report_types": ("exercise","video"),
+        "request_report_type": report_type,
+        "facility": facility,
+        "groups": groups,
+        "topics": topics,
+    }
+    
+    # get querystring info
+    topic_id = request.GET.get("topic", "")
+    group_id = request.GET.get("group", "")
+    
+    # No valid data; just show generic
+    if not group_id or not topic_id or not re.match("^[\w\-]+$", topic_id):
+        return context
+ 
+    users = get_object_or_404(FacilityGroup, pk=group_id).facilityuser_set.order_by("last_name", "first_name")
+
+    # We have enough data to render over a group of students
+    # Get type-specific information
+    if report_type=="exercise":
+        # Fill in exercises
+        exercises = get_topic_exercises(topic_id, get_path=True)
+        context["exercises"] = exercises
+        
+        # Get students
+        context["students"] = [{
+            "first_name": user.first_name,
+            "last_name": user.last_name,
+            "username": user.username,
+            "exercise_logs": [get_object_or_None(ExerciseLog, user=user, exercise_id=ex["name"]) for ex in exercises],
+        } for user in users]
+    
+    elif report_type=="video":
+        # Fill in videos
+        context["videos"] = get_topic_videos(topic_id)
+
+        context["students"] = [{
+            "first_name": user.first_name,
+            "last_name": user.last_name,
+            "username": user.username,
+            "video_logs": [get_object_or_None(VideoLog, user=user, youtube_id=v["youtube_id"]) for v in context["videos"]],
+        } for user in users]
+        
+    else:
+        return HttpResponseNotFound(render_to_string("404_distributed.html", {}, context_instance=RequestContext(request)))
+
+    return context
 

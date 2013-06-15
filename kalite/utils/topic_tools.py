@@ -1,6 +1,8 @@
 import glob, os
+import json
 import logging
 
+import settings
 from main import topicdata
 
 
@@ -140,7 +142,22 @@ db_name: name of database to connect to (Old method)
     return (topic, nvideos_local, nvideos_known)
 
     
-def get_videos_for_topic(topic_id=None, topics=None):
+
+    
+def get_topic_exercises(topic_id, get_path=False, sort=True, data_path=settings.DATA_PATH):
+    
+    # Get the exercises
+    exercises = json.loads(open("%stopicdata/%s.json" % (data_path, topic_id)).read())
+    if sort:
+        exercises = sorted(exercises, key=lambda e: (e["h_position"], e["v_position"]))
+    if get_path:
+        for ex in exercises:
+            ex["path"] = topicdata.NODE_CACHE["Exercise"][ex["name"]]["path"]
+    
+    return exercises
+
+
+def get_topic_videos(topic_id=None, topics=None):
     """Gets all video nodes under the topic ID.  
     If topid ID is None, returns all videos under the topics node. """
     
@@ -155,7 +172,7 @@ def get_videos_for_topic(topic_id=None, topics=None):
         # Recursive case: traverse children
         if topics.get("children",None):
             for topic in topics.get("children",[]):
-                videos += get_videos_for_topic(topics=topic)
+                videos += get_topic_videos(topics=topic)
 
         return videos
         
@@ -163,7 +180,7 @@ def get_videos_for_topic(topic_id=None, topics=None):
     elif topics.get("children",None):
         videos = []
         for topic in topics.get("children"):
-            videos += get_videos_for_topic(topic_id, topic)
+            videos += get_topic_videos(topic_id, topic)
                 
         return videos   
     

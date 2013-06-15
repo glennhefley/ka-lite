@@ -4,9 +4,8 @@
 
 {% block coachreports_active %}active{% endblock coachreports_active %}
 
-{% block headcss %}
-{{ block.super }}
-<link rel='stylesheet' type='text/css' href='{% static "css/coach_reports.css" %}'>
+{% block headcss %}{{ block.super }}
+<link rel='stylesheet' type='text/css' href='{% static "/static/css/coach_reports.css" %}'>
 {% endblock headcss %}
 
 {% comment "Individual pages should implement content %}

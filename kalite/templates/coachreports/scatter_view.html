@@ -99,7 +99,7 @@ google.loader.writeLoadTag("script", "/static/js/google.corechart.js", false);
       dataTable.addColumn('number', '{{ form.xaxis }}');
       dataTable.addColumn('number', '{{ form.yaxis }}');
       // A column for custom tooltip content
-//      dataTable.addColumn({type: 'string', role: 'tooltip'});
+//      dataTable.addColumn({type: 'string',    : 'tooltip'});
       dataTable.addColumn({'type': 'string', 'role': 'tooltip', 'p': {'html': true}});
       dataTable.addRows([
       {% for user, vals in data.data.items %}
@@ -129,6 +129,11 @@ google.loader.writeLoadTag("script", "/static/js/google.corechart.js", false);
 */
         chart.draw(dataTable, options);
   }
+</script>
+<script>
+$.getJSON("test.json", function(json) {
+    console.log(json); // this will show the info it in firebug console
+});
 </script>
 {% endblock headjs %}
 
