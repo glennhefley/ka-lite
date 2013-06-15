@@ -8,7 +8,7 @@ from django.core.management.base import BaseCommand, CommandError
 
 import settings
 import securesync
-from utils.topic_tools import get_videos_for_topic
+from utils.topic_tools import get_topic_videos
 from securesync.models import Facility, FacilityUser, FacilityGroup, DeviceMetadata
 from main.models import ExerciseLog, VideoLog
 
@@ -33,9 +33,8 @@ def sigmoid(theta, a, b):
 def generate_fake_facilities(names=("Wilson Elementary",)):
     """Add the given fake facilities"""
     facilities = [];
-    postfix = " @ %s" % DeviceMetadata.objects.filter(is_own_device=True)[0].device.name
+    
     for name in names:
-        name += postfix
         try:
             facility = Facility.objects.get(name=name)
             logging.info("Retrieved facility '%s'" % name)
@@ -157,7 +156,7 @@ def generate_fake_video_logs(topics=topics,facility_users=None):
     video_logs = []
     
     for topic in topics:
-        videos = get_videos_for_topic(topic_id=topic)
+        videos = get_topic_videos(topic_id=topic)
         
         # Determine proficiency
         videos_a = [random.random() for i in range(len(videos))]
