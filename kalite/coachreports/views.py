@@ -37,15 +37,16 @@ def get_api_data(request, form):
 """
 
 #@require_admin
+@facility_required
 @render_to("coachreports/scatter_view.html")
-def scatter_view(request, xaxis="", yaxis=""):
-    return scatter_view_context(request, xaxis=xaxis, yaxis=yaxis)
+def scatter_view(request, facility, xaxis="", yaxis=""):
+    return scatter_view_context(request, facility=facility, xaxis=xaxis, yaxis=yaxis)
 
 
-def scatter_view_context(request, topic_path="/topics/math/arithmetic/", *args, **kwargs):
+def scatter_view_context(request, facility, topic_path="/topics/math/arithmetic/", *args, **kwargs):
 
     # Get the form, and retrieve the API data
-    form = get_data_form(request, topic_path=topic_path, *args, **kwargs)
+    form = get_data_form(request, facility=facility, topic_path=topic_path, *args, **kwargs)
         
     data = []
     try:
@@ -69,13 +70,15 @@ def scatter_view_context(request, topic_path="/topics/math/arithmetic/", *args, 
     }
     
 
+@facility_required
 @render_to("coachreports/timeline_view.html")
-def timeline_view(request, xaxis="", yaxis=""):
-    return scatter_view_context(request, xaxis=xaxis, yaxis=yaxis)
+def timeline_view(request, facility, xaxis="", yaxis=""):
+    return scatter_view_context(request, facility=facility, xaxis=xaxis, yaxis=yaxis)
 
+@facility_required
 @render_to("coachreports/student_view.html")
-def student_view(request, xaxis="pct_mastery", yaxis="ex:attempts"):
-    context = scatter_view_context(request, xaxis=xaxis, yaxis=yaxis)
+def student_view(request, facility, xaxis="pct_mastery", yaxis="ex:attempts"):
+    context = scatter_view_context(request, facility=facility, xaxis=xaxis, yaxis=yaxis)
     return context
 
 #@require_admin

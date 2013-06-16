@@ -48,9 +48,9 @@ def facility_from_request(handler):
 
 def facility_required(handler):
     @facility_from_request
-    def inner_fn(request, facility, *args, **kwargs):
+    def inner_fn(request, facility=None, *args, **kwargs):
         if facility:
-            return handler(request, facility, *args, **kwargs)
+            return handler(request, *args, facility=facility, **kwargs)
 
         if Facility.objects.count() == 0:
             if request.is_admin:
