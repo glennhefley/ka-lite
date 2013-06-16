@@ -310,6 +310,8 @@ def test_connection(request):
     return HttpResponse("OK")
     
 
+# On pages with no forms, we want to ensure that the CSRF cookie is set, so that AJAX POST
+# requests will be possible. Since `status` is always loaded, it's a good place for this.
 @ensure_csrf_cookie
 def status(request):
     """This is the data blob used by the local browser (via ajax)

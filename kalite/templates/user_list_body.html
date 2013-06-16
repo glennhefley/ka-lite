@@ -42,6 +42,7 @@
         {% if request.GET.group != "Ungrouped" %}
         <button id="removegroup">{% trans "Remove Users from Group" %}</button>
    <!-- <button id="delete">{% trans "Delete Users" %}</button> -->
+        <!-- TODO: Turn from link to button type functionality, so that can add user within coach report list and come back to user list at same point. -->
         <a href="{% url add_facility_student %}?facility={{ facility.id }}&group={{ request.GET.group }}" id="newuser">{% trans "Add New User to Group" %}</a>
         {% endif %}
     </div>
