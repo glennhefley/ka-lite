@@ -16,26 +16,10 @@ from securesync.views import facility_required
 from shared.views import group_report_context
 from coachreports.forms import DataForm
 from main import topicdata
+from coachreports.api_views import StatusException, get_data_form
 
 
-class StatusException(Exception):
-    def __init__(self, message, status_code):
-        super(StatusException, self).__init__(message)
-        self.args = (status_code,)
-        self.status_code = status_code
-
-def get_data_form(request):
-
-    # fake data
-    return DataForm(data = { # the following defaults are for debug purposes only
-        'facility_id': request.REQUEST.get('facility_id'),
-        'group_id':    request.REQUEST.get('group_id'),
-        'user':        request.REQUEST.get('user_id'),
-        'topic_path':  request.REQUEST.get('topic_path'),#/topics/math/arithmetic/multiplication-division/"),
-        'xaxis':       request.REQUEST.get('xaxis'),#pct_mastery"),
-        'yaxis':       request.REQUEST.get('yaxis'),#effort"  ),
-    })
-
+"""
 def get_api_data(request, form):
     api_url = "http%s://%s%s" % ("s" if request.is_secure() else "", request.get_host(), reverse("coachreports.api_views.api_data"))
 
@@ -50,15 +34,22 @@ def get_api_data(request, form):
 
     data = json.loads(response.text)
     return data 
+"""
 
-#@require_admin
+@require_admin
 @render_to("coachreports/scatter_view.html")
-def scatter_view(request):
+def scatter_view(request, xaxis="", yaxis=""):
+    return scatter_view_context(request, xaxis=xaxis, yaxis=yaxis)
+
+
+def scatter_view_context(request, xaxis="", yaxis=""):
 
     # Get the form, and retrieve the API data
-    form = get_data_form(request)
+    form = get_data_form(request, xaxis=xaxis, yaxis=yaxis, topic_path="/topics/math/arithmetic/")
+        
+    data = []
     try:
-        data = get_api_data(request, form)
+        pass#data = get_api_data(request, form)
     except StatusException as se:
         if se.status_code == 404:
             return HttpResponseNotFound(se.message)
@@ -75,7 +66,12 @@ def scatter_view(request):
     return {
         "form": form.data,
         "data": data,
-    }        
+    }
+    
+
+@render_to("coachreports/student_view.html")
+def student_view(request):
+    return scatter_view_context(request)
 
 
 #@require_admin

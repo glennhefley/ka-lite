@@ -115,14 +115,21 @@ function showJsonData(topic_path, xaxis, yaxis) {
         $("#yaxis").val(yaxis).change();
         return false;
     }
-    
+    if (!xaxis || !yaxis) { // one of the ---- is selected
+        return false; 
+    }
     // Get the data
-    var url = "{% url api_data %}?topic_path=" + topic_path + "&xaxis=" + xaxis + "&yaxis=" + yaxis
+    var url = "{% url api_data %}?facility_id={{ form.facility_id }}&group_id={{ form.group_id }}&user_id={{ form.user_id }}";
+    url += ("&topic_path=" + topic_path + "&xaxis=" + xaxis + "&yaxis=" + yaxis);
 //    alert(url);
     $.getJSON(url, function(json) {
         window.json = json;
+        
+        $("#loading").text("Drawing " + xaxis + " " + yaxis); 
         drawJsonChart(json, xaxis, yaxis);
+        $("#loading").text(""); 
     });
+    $("#loading").text("Loading " + xaxis + " " + yaxis); 
 }
 
 </script>
@@ -132,6 +139,11 @@ function showJsonData(topic_path, xaxis, yaxis) {
 {% block headcss %} {{ block.super }}
 <link rel='stylesheet' type='text/css' href='{% static "css/google.tooltip.css" %}'>
 <style>
+#loading {
+    width:100%;
+    font-size:12pt;
+    text-align:center;
+}
 #table div { margin-top: 25px; }
 .tooltip { padding: 10px; }
 
@@ -153,7 +165,18 @@ table.detail td {
 
 {% block content %}
 <div id="navbar" style="padding-bottom:25px">
-[Navbar for browsing different facility/group/student]
+    <div id="topic_link">
+        Topic: 
+        <a href="{{ form.topic_path }}">{{ form.topic_path }}</a>
+        [We could split these on '/' and link to each level of the path, and have easy navigation...
+    </div>
+    <div id="users_link">
+    {% if form.user_id %}User: {{ form.user_id }}
+    {% elif form.facility_id %}Facility: {{ form.facility_id }}
+    {% elif form.group_id %}Group: {{ form.group_id }}
+    {% else}All data (across facilities, groups, etc)
+    {% endif %}
+    </div>
 </div>
 
 <div id="choose">
@@ -164,6 +187,7 @@ table.detail td {
             {% cycle "X-axis" "Y-axis" as axis_text %}:
             {% mkrange 0 5 as option_range %}
             <select id="{{ axis_value }}" name="{{ axis_value }}">
+                <option value="">----</option>
             {% for oi in option_range %}
                 {% cycle "pct_mastery" "effort" "ex:attempts"    "ex:streak_progress"      "ex:points"       as option_value silent %}:
                 {% cycle "% Mastery"   "Effort" "Total Attempts" "Average Streak" "Exercise Points" as option_text  silent %}:
@@ -175,13 +199,14 @@ table.detail td {
 </div>
 
 <div id="google-chart">
+    <div id="loading"></div>
     <div id="chart_div" style="width: 900px; height: 500px;"></div>
 </div>
 
 <script>
-    {% mkrange 0 2 as axes_range %}
-    {% for ai in axes_range %}
-        {% cycle "xaxis"  "yaxis"   as axis_value silent %}
+{% mkrange 0 2 as axes_range %}
+{% for ai in axes_range %}
+    {% cycle "xaxis"  "yaxis"   as axis_value silent %}
     $("#{{ axis_value }}").change(function(){
         showJsonData(
             "/topics/math/arithmetic/multiplication-division/", 
@@ -189,8 +214,8 @@ table.detail td {
             $("#yaxis option:selected").val()
         );
     });
-    {% endfor %}
+{% endfor %}
 
-    showJsonData("/topics/math/arithmetic/multiplication-division/", "{{ form.xaxis }}", "{{ form.yaxis }}")
+    showJsonData("{{ form.topic_path }}", "{{ form.xaxis }}", "{{ form.yaxis }}")
 </script>
 {% endblock content %}
