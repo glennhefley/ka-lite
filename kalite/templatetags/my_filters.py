@@ -98,7 +98,7 @@ class IncludeBlockNode(Node):
         '''
         for node in template:
             if isinstance(node, BlockNode) and node.name == name:
-                import pdb; pdb.set_trace()
+                # Note: will not render VariableNode block.super
                 return node.nodelist.render(context)
             elif isinstance(node, ExtendsNode):
                 return self._get_node(node.nodelist, context, name)
