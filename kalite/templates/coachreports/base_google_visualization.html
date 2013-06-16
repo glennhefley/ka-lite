@@ -1,0 +1,138 @@
+{% extends "coachreports/base.html" %}
+{% comment %}
+This template is a basic skeleton around a Google Visualization plot.  It has the following parts:
+
+* Loads scripts necessary for Google Visaulizations (locally)
+* Has a div for plotting, and a div for status message (loading)
+
+You must:
+* Implement js function drawJsonChart(json, xaxis, yaxis); (take a json and create the visualization chart/options)
+* Implement template block axis_dropdown that contains:
+        <select id="xaxis" name="xaxis">
+            <option value="">----</option>
+            [other options with value=API key for that value, and nice text for it (via common views.py code)
+        <select id="yaxis" name="yaxis">
+            <option value="">----</option>
+            [other options with value=API key for that value, and nice text for it (via common views.py code)
+{% endcomment %}
+
+
+{% load my_filters %}
+{% load staticfiles %}
+
+{% block headjs %} {{ block.super }}
+
+<!-- Necessary for Google -->
+<script type="text/javascript" src="/static/js/google.jsapi.js"></script>
+<script type="text/javascript">
+//  google.load("visualization", "1", {packages:["corechart"]});
+if (window['google'] != undefined && window['google']['loader'] != undefined) {
+    if (!window['google']['visualization']) {
+        window['google']['visualization'] = {};
+        google.visualization.Version = '1.0';
+        google.visualization.JSHash = '4c2447db544d51e9c1e1331ad8007df0';
+        google.visualization.LoadArgs = 'file\75visualization\46v\0751\46packages\75corechart';
+    }
+    google.loader.writeLoadTag("script", "/static/js/google.corechart.js", false);
+}
+</script>
+<script type="text/javascript" src="/static/js/google.jsapi.js"></script>
+<script type="text/javascript">
+
+function plotJsonData(base_url, topic_path, xaxis, yaxis) {
+    /* Called whenever json data blob returns (via AJAX)
+       NOTE: you have to implement drawJsonChart(json, xaxis, yaxis); */
+      
+    //
+    if (xaxis && xaxis != $("#xaxis option:selected").val()) {
+        $("#xaxis").val(xaxis).change();
+        return false;
+    }
+    if (yaxis && yaxis != $("#yaxis option:selected").val()) {
+        $("#yaxis").val(yaxis).change();
+        return false;
+    }
+    if (!xaxis || !yaxis) { // one of the ---- is selected
+        return false; 
+    }
+    
+    // Get the data
+    var url = base_url + "?facility_id={{ form.facility_id }}&group_id={{ form.group_id }}&user_id={{ form.user_id }}";
+    url += ("&topic_path=" + topic_path + "&xaxis=" + xaxis + "&yaxis=" + yaxis);
+
+    $.getJSON(url, function(json) {
+        window.json = json;
+        
+        $("#loading").text("Drawing " + xaxis + " " + yaxis); 
+        drawJsonChart(json, xaxis, yaxis);
+        $("#loading").text(""); 
+    });
+    $("#loading").text("Loading " + xaxis + " " + yaxis); 
+}
+</script>
+{% endblock headjs %}
+
+
+{% block headcss %} {{ block.super }}
+<link rel='stylesheet' type='text/css' href='{% static "css/google.tooltip.css" %}'>
+<style>
+#loading {
+    width:100%;
+    font-size:12pt;
+    text-align:center;
+}
+</style>
+{% endblock headcss %}
+
+
+{% block content %}
+<div id="navbar" style="padding-bottom:25px">
+    <div id="topic_link">
+        Topic: 
+        <a href="{{ form.topic_path }}">{{ form.topic_path }}</a>
+        [We could split these on '/' and link to each level of the path, and have easy navigation...
+    </div>
+    <div id="users_link">
+    {% if form.user_id %}User: {{ form.user_id }}
+    {% elif form.facility_id %}Facility: {{ form.facility_id }}
+    {% elif form.group_id %}Group: {{ form.group_id }}
+    {% else %}All data (across facilities, groups, etc)
+    {% endif %}
+    </div>
+</div>
+
+<div id="choose">
+    <form id="select_data" name="select_data">
+{% block axis_dropdown %}
+[You must fill me in!!]
+{% endblock axis_dropdown %}
+    </form>
+</div>
+
+<div id="google-chart">
+    <div id="loading"></div>
+    <div id="chart_div" style="width: 900px; height: 500px;"></div>
+</div>
+
+<script>
+{% mkrange 0 2 as axes_range %}
+{% for ai in axes_range %}
+    {% cycle "xaxis"  "yaxis"  as axis_value silent %}
+    $("#{{ axis_value }}").change(function(){
+        plotJsonData(
+            "{% url api_data %}",
+            "{{ form.topic_path }}", 
+            $("#xaxis option:selected").val(),
+            $("#yaxis option:selected").val()
+        );
+    });
+{% endfor %}
+
+    plotJsonData(
+        "{% url api_data %}",
+        "{{ form.topic_path }}", 
+        "{{ form.xaxis }}", 
+        "{{ form.yaxis }}"
+    );
+</script>
+{% endblock content %}

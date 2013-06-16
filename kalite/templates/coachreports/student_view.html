@@ -1,0 +1,19 @@
+{% extends "coachreports/base.html" %}
+
+{% load my_filters %}
+{% load staticfiles %}
+{% load i18n %}
+
+{% block headjs %} {{ block.super }}
+{% include_block "coachreports/scatter_view.html" "headjs" %}
+{% endblock headjs %}
+
+
+{% block headcss %} {{ block.super }}
+{% include_block "coachreports/scatter_view.html" "headcss" %}
+{% endblock headcss %}
+
+
+{% block content %}
+{% include_block "coachreports/scatter_view.html" "content" %}
+{% endblock content %}
