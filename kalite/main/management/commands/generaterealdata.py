@@ -13,6 +13,8 @@
 #     - struggling   (20%): low speed_of_learning, high effort_level
 """
 
+import datetime
+
 from django.core.management.base import BaseCommand, CommandError
 from securesync.models import Facility, FacilityUser, FacilityGroup, Device, DeviceMetadata
 import securesync
@@ -24,24 +26,25 @@ from main import topicdata
 import logging
 
 import settings
-from utils.topic_tools import get_topic_videos
+from utils.topic_tools import get_topic_videos, get_topic_exercises
 
 firstnames = ["Richard","Kwame","Jamie","Alison","Nadia","Zenab","Guan","Dylan","Vicky","Melanie","Michelle","Yamira","Elena","Thomas","Jorge","Lucille","Arnold","Rachel","Daphne","Sofia"]
 
 lastnames = ["Awolowo","Clement","Smith","Ramirez","Hussein","Wong","Franklin","Lopez","Brown","Paterson","De Soto","Khan","Mench","Merkel","Roschenko","Picard","Jones","French","Karnowski","Boyle"]
 
 # We want to show some users that have a correlation between effort and mastery, some that show mastery without too much effort (unchallenged), and some that show little mastery with a lot of effort
-user_types = [ { "name": "common",       "speed_of_learning": (0.5,1),     "effort_level": (0.5,1),     "time_in_program": (0.5, 1)},
-               { "name": "unchallenged", "speed_of_learning": (0.75, 0.5), "effort_level": (0.25, 0.5), "time_in_program": (0.5, 1) },
-               { "name": "struggling",   "speed_of_learning": (0.25, 0.5), "effort_level": (0.75, 0.5), "time_in_program": (0.5, 1) },
-              ]
+user_types = [ 
+    { "name": "common",       "speed_of_learning": (0.5,0.5),    "effort_level": (0.5,0.5),    "time_in_program": (0.5,0.5)},
+    { "name": "unchallenged", "speed_of_learning": (0.75, 0.25), "effort_level": (0.25, 0.25), "time_in_program": (0.5,0.5) },
+    { "name": "struggling",   "speed_of_learning": (0.25, 0.25), "effort_level": (0.75, 0.25), "time_in_program": (0.5,0.5) },
+]
 
 def select_all_exercises(topic_name):
     # This function needs to traverse all children (recursively?) to select out all exercises.
     # Note: this function may exist
     pass
     
-topics = ["multiplication-division"]
+topics = ["arithmetic"]
 
 def generate_user_type(n=1):
     # 0: 60%=common, 1: 20%=unchallenged; 2: 20%=struggling
@@ -51,9 +54,9 @@ def sample_user_settings():
     user_type = user_types[generate_user_type()[0]]
     return {
         "name": user_type["name"],
-        "speed_of_learning": random.gauss(user_type["speed_of_learning"][0], user_type["speed_of_learning"][1]),
-        "effort_level":      random.gauss(user_type["effort_level"][0],      user_type["effort_level"][1]),
-        "time_in_program":   random.random()#(user_type["time_in_program"][0],   user_type["time_in_program"][1]),
+        "speed_of_learning": max(0.05, min(0.95, random.gauss(user_type["speed_of_learning"][0], user_type["speed_of_learning"][1]))),
+        "effort_level":      max(0.05, min(0.95, random.gauss(user_type["effort_level"][0],      user_type["effort_level"][1]))),
+        "time_in_program":   max(0.05, min(0.95, random.random()))#(user_type["time_in_program"][0],   user_type["time_in_program"][1]),
     }
     
 def username_from_name(first_name, last_name):
@@ -148,10 +151,12 @@ def generate_fake_facility_users(nusers=20, facilities=None, facility_groups=Non
     return (facility_users,facility_groups,facilities)
     
 
-def generate_fake_exercise_logs(topics=topics,facility_users=None):
+def generate_fake_exercise_logs(topics=topics,facility_users=None, start_date=datetime.datetime.now() - datetime.timedelta(days=30*6)):
     """Add exercise logs for the given topics, for each of the given users.
     If no users are given, they are created.
     If no topics exist, they are taken from the list at the top of this file."""
+    
+    date_diff = datetime.datetime.now() - start_date
     
     if not facility_users:
         (facility_users,_,_) = generate_fake_facility_users()
@@ -159,10 +164,11 @@ def generate_fake_exercise_logs(topics=topics,facility_users=None):
     exercise_logs = []
     
     for topic in topics:
-        exercises = json.load(open("./static/data/topicdata/" + topic + ".json","r"))
-        exercises = sorted(exercises, key = lambda k: (k["h_position"], k["v_position"]))
+        # Get all exercises related to the topic 
+        exercises = get_topic_exercises(topic, sort=True)
         
         for i, user in enumerate(facility_users):
+        
             # Get (or create) user type
             try:
                 user_settings = json.loads(user.notes)
@@ -170,10 +176,12 @@ def generate_fake_exercise_logs(topics=topics,facility_users=None):
                 user_settings = sample_user_settings()
                 user.notes = json.dumps(user_settings)
                 user.save()
-            
+                
             #speed_of_learning, effort_level, time_in_program
             # Probability of doing any particular exercise
             p_exercise = 0.5*user_settings["effort_level"] + 0.5*user_settings["time_in_program"]
+            #date_diff_started = date_diff*user_settings["time_in_program"] # when this user started in the program, relative to NOW
+            print "# exercises: %d; p(exercise)=%4.3f, user settings: %s" % (len(exercises), p_exercise, json.dumps(user_settings))
             
             # # of exercises is related to 
             for j, exercise in enumerate(exercises):
@@ -189,6 +197,8 @@ def generate_fake_exercise_logs(topics=topics,facility_users=None):
                 completed = (progress_sample > 0)
                 streak_progress = 100 if completed else 100*progress_sample/(p_completed-1.0)
                 points   = attempts * 10 * min(1, user_settings["speed_of_learning"]*1.5)
+                
+                #date_completed = max(datetime.timedelta(days=0), 
                 
                 # Always create new
                 logging.info("Creating exercise log: %-12s: %-25s (%d points, %d attempts, %d%% streak)" % (user.first_name, exercise["name"],  int(points), int(attempts), int(streak_progress)))

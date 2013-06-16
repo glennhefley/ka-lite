@@ -1,6 +1,7 @@
 {% extends "coachreports/base.html" %}
 
 {% load my_filters %}
+{% load staticfiles %}
 
 {% block headjs %} {{ block.super }}
 
@@ -129,6 +130,7 @@ function showJsonData(topic_path, xaxis, yaxis) {
 
 
 {% block headcss %} {{ block.super }}
+<link rel='stylesheet' type='text/css' href='{% static "css/google.tooltip.css" %}'>
 <style>
 #table div { margin-top: 25px; }
 .tooltip { padding: 10px; }
