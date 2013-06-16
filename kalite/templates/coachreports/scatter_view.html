@@ -6,10 +6,10 @@
 {% block headjs %} {{ block.super }}
 <script type="text/javascript">
 
-function drawChart(dataTable, options) {
+function drawChart(chart_div, dataTable, options) {
     options["legend"] = 'none';
     options["tooltip"] = { isHtml: 'true', trigger: 'selection' };
-    var chart = new google.visualization.ScatterChart(document.getElementById('chart_div'));
+    var chart = new google.visualization.ScatterChart($(chart_div)[0]);
 
     chart.draw(dataTable, options);
 }
@@ -78,14 +78,14 @@ function user2tooltip(json, user, xaxis, yaxis) {
     return tooltip  
 }  
 
-function drawJsonChart(json, xaxis, yaxis) {
+function drawJsonChart(chart_div, json, xaxis, yaxis) {
     var options = {
       title: xaxis + ' vs. ' + yaxis + ' comparison',
       hAxis: {title: xaxis},
       vAxis: {title: yaxis},
     };
 
-    drawChart(json2dataTable(json, xaxis, yaxis), options);
+    drawChart(chart_div, json2dataTable(json, xaxis, yaxis), options);
 }
 
 </script>

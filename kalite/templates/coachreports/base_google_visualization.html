@@ -6,7 +6,10 @@ This template is a basic skeleton around a Google Visualization plot.  It has th
 * Has a div for plotting, and a div for status message (loading)
 
 You must:
-* Implement js function drawJsonChart(json, xaxis, yaxis); (take a json and create the visualization chart/options)
+* Implement js function drawJsonChart(chart_div, json, xaxis, yaxis);
+    - Get a JSON blob
+    - Create the visualization chart and options
+    - Dump to the chart div (by default: chart_div)
 * Implement template block axis_dropdown that contains:
         <select id="xaxis" name="xaxis">
             <option value="">----</option>
@@ -39,9 +42,9 @@ if (window['google'] != undefined && window['google']['loader'] != undefined) {
 <script type="text/javascript" src="/static/js/google.jsapi.js"></script>
 <script type="text/javascript">
 
-function plotJsonData(base_url, topic_path, xaxis, yaxis) {
+function plotJsonData(chart_div, base_url, topic_path, xaxis, yaxis) {
     /* Called whenever json data blob returns (via AJAX)
-       NOTE: you have to implement drawJsonChart(json, xaxis, yaxis); */
+       NOTE: you have to implement drawJsonChart(chart_div, json, xaxis, yaxis); */
       
     //
     if (xaxis && xaxis != $("#xaxis option:selected").val()) {
@@ -64,7 +67,7 @@ function plotJsonData(base_url, topic_path, xaxis, yaxis) {
         window.json = json;
         
         $("#loading").text("Drawing " + xaxis + " " + yaxis); 
-        drawJsonChart(json, xaxis, yaxis);
+        drawJsonChart(chart_div, json, xaxis, yaxis);
         $("#loading").text(""); 
     });
     $("#loading").text("Loading " + xaxis + " " + yaxis); 
@@ -80,6 +83,10 @@ function plotJsonData(base_url, topic_path, xaxis, yaxis) {
     width:100%;
     font-size:12pt;
     text-align:center;
+}
+.google-chart {
+    width: 900px; 
+    height: 500px;
 }
 </style>
 {% endblock headcss %}
@@ -110,16 +117,19 @@ function plotJsonData(base_url, topic_path, xaxis, yaxis) {
 </div>
 
 <div id="google-chart">
+{% block chart_div %}
     <div id="loading"></div>
-    <div id="chart_div" style="width: 900px; height: 500px;"></div>
+    <div id="chart_div" class="google-chart"></div>
+{% endblock chart_div %}
 </div>
 
-<script>
+<script type="text/javascript">
 {% mkrange 0 2 as axes_range %}
 {% for ai in axes_range %}
     {% cycle "xaxis"  "yaxis"  as axis_value silent %}
     $("#{{ axis_value }}").change(function(){
         plotJsonData(
+            "#chart_div",
             "{% url api_data %}",
             "{{ form.topic_path }}", 
             $("#xaxis option:selected").val(),
@@ -129,6 +139,7 @@ function plotJsonData(base_url, topic_path, xaxis, yaxis) {
 {% endfor %}
 
     plotJsonData(
+        "#chart_div",
         "{% url api_data %}",
         "{{ form.topic_path }}", 
         "{{ form.xaxis }}", 
