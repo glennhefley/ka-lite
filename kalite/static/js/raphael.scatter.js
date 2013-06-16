@@ -64,6 +64,8 @@
         ],
         series_colours: ['#000', '#fff'],
         ticks: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10],  //ticks.. obv.
+        xticks: [],
+        yticks: [],
         x_label: "",  // x axis label
         y_label: "",  // y axis label
         clickFn: scatterPlot.prototype.defaultClickFn,  // click a point and...
@@ -146,7 +148,7 @@
 
         // labels
         for (var xi in xticks) {
-            if (xi > 0) {
+            if (xi > 0.0) {
                 xlabels.push(
                     r.text(
                         text_width + padding + (xi * xtick_size) - (2 * text_width),
@@ -155,7 +157,7 @@
             }
         }
         for (var yi in yticks) {
-            if (yi > 0) {
+            if (yi > 0.0) {
                 ylabels.push(
                     r.text(
                         padding - (2 * text_width),
@@ -164,6 +166,7 @@
             }
         }
         console.log(xlabels);
+        console.log(ylabels);
         // origin
         r.text(padding - (2 * text_width), size + (2 * text_width), 0)
 
@@ -279,6 +282,7 @@
 
         var size = this.config.size;
         //how far apart are the ticks?
+        console.log(this.config.xticks);
         this.config.xticks = this.config.xticks ? this.config.xticks : this.config.ticks;
         this.config.yticks = this.config.yticks ? this.config.yticks : this.config.ticks;
         this.config.xtick_size = size / ((this.config.xticks[1]-this.config.xticks[0])*(this.config.xticks.length - 1));
@@ -289,7 +293,7 @@
         this.config.radius = size / 100;
         //hm, bit rough, but really height/width of chars.
         this.config.text_width = this.config.padding / 4;
-
+        
         var _getLegendHeight = function() {
             return self.config.text_width * 2;
         }
