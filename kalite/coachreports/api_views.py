@@ -70,14 +70,14 @@ def compute_data(types, who, where):
                 # ExerciseLog.filter(user__in=who, exercise_id__in=exercises).order_by("user.id")
                 for user in data.keys():
                     ex_logs[user] = query_exlogs(user, exercises, ex_logs[user]) 
-                    data[user][type] = 0 if not ex_logs[user] else 100.*sum([el.complete for el in ex_logs[user]])/float(ex_logs[user].count())
+                    data[user][type] = 0 if not ex_logs[user] else 100.*sum([el.complete for el in ex_logs[user]])/float(len(exercises))
                     
             elif type == "effort":
                 if "ex:attempts" in data[data.keys()[0]] and "vid:total_seconds_watched" in data[data.keys()[0]]:
                     for user in data.keys():
-                        total_attempts = sum(data[user]["ex:attempts"].values())
-                        total_seconds_watched = sum(data[user]["vid:total_seconds_watched"].values())
-                        data[user][type] = total_attempts/10. + total_seconds_watched/750.
+                        avg_attempts = sum(data[user]["ex:attempts"].values())/float(len(exercises))
+                        avg_seconds_watched = sum(data[user]["vid:total_seconds_watched"].values())/float(len(videos))
+                        data[user][type] = avg_attempts/10. + avg_seconds_watched/750.
                 else:
                     types += ["ex:attempts", "vid:total_seconds_watched", "effort"]
             
