@@ -1,0 +1,21 @@
+#table div {
+    margin-top: 25px;
+}
+.tooltip {
+    padding: 10px;
+}
+
+.username {
+    font-weight: bold;
+}
+
+table.detail {
+    border: 1px solid green;
+}
+
+table.detail th {
+    background-color: #aaf;
+}
+table.detail td {
+    background-color: #ccf;
+}

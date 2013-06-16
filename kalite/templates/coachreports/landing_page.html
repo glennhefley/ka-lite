@@ -6,6 +6,25 @@
 
 {% block headcss %}{{ block.super }}
 <link rel='stylesheet' type='text/css' href='{% static "/static/css/landing-page.css" %}'>
+<style>
+#options {
+    width:100%;
+}
+.suggested-action {
+    margin: 0 auto;
+}
+table {
+    width:100%;
+    border: 0px solid green;
+}
+td {
+    width: 50%;
+    border: 0px solid green;
+}
+td.links {
+    text-align: center;
+}
+</style>
 {% endblock headcss %}
 
 {% block content %}
@@ -13,31 +32,49 @@
     
     <h2 class="main-headline">{% trans "Coach Reports" %}</h2>
     
-    <div class="vertical-shadow suggested-action">
-        <a href="/exercisedashboard">
-            <h2 class="suggested-action-title">{% trans "View reports on table charts" %}</h2>
- <!--            <p>{% trans "Practice your math skills from addition to calculus and everything in between." %}</p> -->
-            <div class="suggested-action-image-link" style="background-image: url({% static "images/coach-report-table.png" %});"></div>
-        </a>
-    </div>
+    {% block navbar %}{{ block.super }}{% endblock navbar %}
 
-    <div class="vertical-shadow suggested-action">
-        <a href="/exercisedashboard">
-            <h2 class="suggested-action-title">{% trans "View reports on scatter graphs" %}</h2>
-<!--             <p>{% trans "Practice your math skills from addition to calculus and everything in between." %}</p> -->
-            <div class="suggested-action-image-link" style="background-image: url({% static "images/coach-report-scatter.png" %});"></div>
-        </a>
-    </div>
+    <table>
+        <tr>
+            <td>
+                <div class="vertical-shadow suggested-action">
+                    <a href="{% url timeline_view %}">
+                        <h2 class="suggested-action-title">{% trans "Explore student master over time" %}</h2>
+                        <div class="suggested-action-image-link" style="background-image: url({% static "images/coach-report-table.png" %});"></div>
+                    </a>
+                </div>
+            </td>
+            <td>
+                <div class="vertical-shadow suggested-action">
+                    <a href="{% url scatter_view %}">
+                        <h2 class="suggested-action-title">{% trans "Explore student mastery to effort" %}</h2>
+                        <div class="suggested-action-image-link" style="background-image: url({% static "images/coach-report-scatter.png" %});"></div>
+                    </a>
+                </div>
+            </td>
+        </tr>
+        <tr>
+            <td class="links">
+                <ul>
+                    <li><a href="{% url timeline_view2 xaxis='6_months' yaxis='pct_mastery' %}?topic_path={{ form.topic_path }}" style="font-size: 24px">Mastery over the past 6 months</a></li>
+                </ul>
+            </td>
+            <td class="links">
+                <ul>
+                    <li><a href="{% url scatter_view xaxis='pct_mastery' yaxis='effort' %}?topic_path={{ form.topic_path }}" style="font-size: 24px">Mastery vs. Effort</a></li>
+                </ul>
+            </td>
+        </tr>
+    </table>
 
-    <div class="clear"></div>
-    
+    </div>
 </div>
-<div>
 
-<ul>
-<li><a href="{% url scatter_view %}?xaxis=pct_mastery&yaxis=effort" style="font-size: 24px">% Mastery vs. Effort</a></li>
-<li><a href="{% url old_coach_report %}" style="font-size: 24px">Old coach report</a></li>
-<li><a href="{% url old_coach_report report_type='video'%}" style="font-size: 24px">Old coach report (with video)</a></li>
+<div>
+    <ul>
+    <li><a href="{% url old_coach_report %}" style="font-size: 24px">Old coach report</a></li>
+    <li><a href="{% url old_coach_report report_type='video'%}" style="font-size: 24px">Old coach report (with video)</a></li>
+    </ul>
 </div>
 
 {% endblock content %}

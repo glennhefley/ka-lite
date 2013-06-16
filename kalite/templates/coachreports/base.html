@@ -5,8 +5,25 @@
 {% block coachreports_active %}active{% endblock coachreports_active %}
 {% block title %}Coach Reports{% endblock title %}
 {% block headcss %}{{ block.super }}
-<link rel='stylesheet' type='text/css' href='{% static "/static/css/coach_reports.css" %}'>
+<link rel='stylesheet' type='text/css' href='{% static "css/coachreports/coach_reports.css" %}'>
 {% endblock headcss %}
 
-{% comment "Individual pages should implement content %}
-{% endcomment %}
+
+{% block content %}
+{% block navbar %}
+<div id="navbar" style="padding-bottom:25px">
+    <div id="topic_link">
+        Topic: 
+        <a href="{{ form.topic_path }}">{{ form.topic_path }}</a>
+        [We could split these on '/' and link to each level of the path, and have easy navigation...
+    </div>
+    <div id="users_link">
+    {% if form.user_id %}User: {{ form.user_id }}
+    {% elif form.facility_id %}Facility: {{ form.facility_id }}
+    {% elif form.group_id %}Group: {{ form.group_id }}
+    {% else %}All data (across facilities, groups, etc)
+    {% endif %}
+    </div>
+</div>
+{% endblock navbar %}
+{% endblock content %}
