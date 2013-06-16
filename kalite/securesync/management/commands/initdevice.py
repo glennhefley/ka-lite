@@ -62,7 +62,7 @@ class Command(BaseCommand):
                 exit(1)       
         # Generate a zone (for stand-alone machines)
         else:
-            out = call_command_with_output("generate_zone", "%Device s's self-generated zone")
+            out = call_command_with_output("generate_zone", "%s's self-generated zone" % name)
             if not out[1]:
                 self.stdout.write("Successfully generated a stand-alone zone.\n") 
             else:
@@ -86,7 +86,7 @@ class Command(BaseCommand):
             zone = all_zones[0]
             cert = zone.register_offline(device = Device.get_own_device())
             if cert:
-                self.stdout.write("Successfully registered (offline) to zone %s, using certificate '%s'\n" % (zone.name, cert))
+                self.stdout.write("Successfully registered (offline) to zone \"%s\", using certificate \"%s\"\n" % (zone.name, cert))
                 if obj_file and os.path.exists(obj_file):
                     os.remove(obj_file)
             else:
