@@ -144,7 +144,7 @@ def old_coach_report(request, facility, report_type="exercise"):
     # Get type-specific information
     if report_type=="exercise":
         # Fill in exercises
-        exercises = get_topic_exercises(topic_id, get_path=True)
+        exercises = get_topic_exercises(topic_id)
         context["exercises"] = exercises
         
         # Get students

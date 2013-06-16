@@ -5,7 +5,7 @@
 {% block coachreports_active %}active{% endblock coachreports_active %}
 
 {% block headcss %}
-<link rel='stylesheet' type='text/css' href='/static/css/coach_reports.css'>
+<link rel='stylesheet' type='text/css' href='/static/css/coachreports/coach_reports.css'>
 <style>
 #legend a {
     height:12px;
@@ -181,7 +181,7 @@
                         <tr>
                             {% for exercise in exercises %}
                                 <th class="headrow data">
-                                    <a href="{{ exercise.path }}"><span title='"{{ exercise.display_name }}"{% if exercise.description %} ({{ exercise.description }}){% endif %}'>{{ exercise.short_display_name }}</span></a>
+                                    <a href="{{ exercise.path }}"><span title='"{{ exercise.display_name }}"{% if exercise.description %} ({{ exercise.description }}){% endif %}'>{{ exercise.name }}</span></a>
                                 </th>
                             {% endfor %}
                         </tr>

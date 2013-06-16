@@ -17,6 +17,7 @@ from securesync.views import facility_required
 #from shared.views import group_report_context
 from coachreports.forms import DataForm
 from main import topicdata
+from config.models import Settings
 
 
 class StatusException(Exception):
@@ -36,7 +37,11 @@ def get_data_form(request, *args, **kwargs):
         data[field] = request.REQUEST.get(field, kwargs.get(field, ""))
     form = DataForm(data = data)
     
-    
+    # Admins will 
+    if request.user.is_superuser:
+        if not (form.data["facility_id"] or form.data["group_id"] or form.data["user_id"]):
+            form.data["facility_id"] = Settings.get("default_facility", None)
+                
     if "facility_user" in request.session:
         user = request.session["facility_user"]
         group = None if not user else user.group
