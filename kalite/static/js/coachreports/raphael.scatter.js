@@ -64,6 +64,8 @@
         ],
         series_colours: ['#000', '#fff'],
         ticks: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10],  //ticks.. obv.
+        xticks: [],
+        yticks: [],
         x_label: "",  // x axis label
         y_label: "",  // y axis label
         clickFn: scatterPlot.prototype.defaultClickFn,  // click a point and...
@@ -96,9 +98,11 @@
         var text_width = this.config.text_width,
             padding = this.config.padding,
             size = this.config.size,
-            tick_size = this.config.tick_size,
-            ticks = this.config.ticks,
             r = this.r;
+            xtick_size = this.config.xtick_size,
+            xticks = this.config.xticks,
+            ytick_size = this.config.ytick_size,
+            yticks = this.config.yticks;
 
         //gradient
         var background = r.rect(padding - text_width, text_width, size, size);
@@ -113,14 +117,16 @@
         );
 
         // draw the tick lines
-        for (var li in ticks) {
+        for (var li in xticks) {
             var line = r.path(
-                "M" + (vpad) + "," + (text_width + (tick_size * li)) + 
-                "L" + (vpad + size) + "," + (text_width + (tick_size * li))
+                "M" + (vpad) + "," + (text_width + (xtick_size * li)) + 
+                "L" + (vpad + size) + "," + (text_width + (xtick_size * li))
             ).attr("stroke-width", 0.5);
+        };
+        for (var li in yticks) {
             line = r.path(
-                "M" + (vpad + (tick_size * li)) + "," + (text_width) + 
-                "L" + (vpad + (tick_size * li)) + "," + (text_width + size)
+                "M" + (vpad + (ytick_size * li)) + "," + (text_width) + 
+                "L" + (vpad + (ytick_size * li)) + "," + (text_width + size)
             ).attr("stroke-width", 0.5);
         }
     };
@@ -130,8 +136,10 @@
         var text_width = this.config.text_width,
             padding = this.config.padding,
             size = this.config.size,
-            tick_size = this.config.tick_size,
-            ticks = this.config.ticks,
+            xtick_size = this.config.xtick_size,
+            xticks = this.config.xticks,
+            ytick_size = this.config.ytick_size,
+            yticks = this.config.yticks;
             r = this.r,
             x_label = this.config.x_label,
             y_label = this.config.y_label,
@@ -139,24 +147,26 @@
             ylabels = [];
 
         // labels
-        for (var xi in ticks) {
-            if (xi > 0) {
+        for (var xi in xticks) {
+            if (xi > 0.0) {
                 xlabels.push(
                     r.text(
-                        text_width + padding + (xi * tick_size) - (2 * text_width),
+                        text_width + padding + (xi * xtick_size) - (2 * text_width),
                         (2 * text_width) + size,
                         xi));
             }
         }
-        for (var yi in ticks) {
-            if (yi > 0) {
+        for (var yi in yticks) {
+            if (yi > 0.0) {
                 ylabels.push(
                     r.text(
                         padding - (2 * text_width),
-                        size - (tick_size * yi) + text_width,
+                        size - (ytick_size * yi) + text_width,
                         yi));
             }
         }
+        console.log(xlabels);
+        console.log(ylabels);
         // origin
         r.text(padding - (2 * text_width), size + (2 * text_width), 0)
 
@@ -183,8 +193,10 @@
         var text_width = this.config.text_width,
             padding = this.config.padding,
             size = this.config.size,
-            tick_size = this.config.tick_size,
-            ticks = this.config.ticks,
+            xtick_size = this.config.xtick_size,
+            xticks = this.config.xticks,
+            ytick_size = this.config.ytick_size,
+            yticks = this.config.yticks;
             r = this.r,
             radius = this.config.radius,
             clickFn = this.config.clickFn,
@@ -209,8 +221,8 @@
                 var y = datum[1];
                 var t = datum[2];
                 var dot = r.circle(
-                    padding - text_width + (x * tick_size),
-                    size + text_width - (y * tick_size),
+                    padding - text_width + (x * xtick_size),
+                    size + text_width - (y * ytick_size),
                     radius)
                     .attr('stroke', '#555')
                     .attr('fill', series_colours[count])
@@ -231,8 +243,10 @@
         var text_width = this.config.text_width,
             padding = this.config.padding,
             size = this.config.size,
-            tick_size = this.config.tick_size,
-            ticks = this.config.ticks,
+            xtick_size = this.config.xtick_size,
+            xticks = this.config.xticks,
+            ytick_size = this.config.ytick_size,
+            yticks = this.config.yticks;
             r = this.r,
             radius = this.config.radius,
             series_colours = this.config.series_colours;
@@ -268,14 +282,18 @@
 
         var size = this.config.size;
         //how far apart are the ticks?
-        this.config.tick_size = size / ((this.config.ticks[1]-this.config.ticks[0])*(this.config.ticks.length - 1));
+        console.log(this.config.xticks);
+        this.config.xticks = this.config.xticks ? this.config.xticks : this.config.ticks;
+        this.config.yticks = this.config.yticks ? this.config.yticks : this.config.ticks;
+        this.config.xtick_size = size / ((this.config.xticks[1]-this.config.xticks[0])*(this.config.xticks.length - 1));
+        this.config.ytick_size = size / ((this.config.yticks[1]-this.config.yticks[0])*(this.config.yticks.length - 1));
         // how much LHS/Bottom extra do we need for axes etc?
         this.config.padding = size / 10;
         // the dot size
         this.config.radius = size / 100;
         //hm, bit rough, but really height/width of chars.
         this.config.text_width = this.config.padding / 4;
-
+        
         var _getLegendHeight = function() {
             return self.config.text_width * 2;
         }
