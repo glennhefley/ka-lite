@@ -1,172 +1,24 @@
-{% extends "coachreports/base.html" %}
+{% extends "coachreports/base_google_visualization.html" %}
 
+{% load repeatblock %}
 {% load my_filters %}
+{% load staticfiles %}
 
 {% block headjs %} {{ block.super }}
-
-<!-- option 2 -->
-<script type="text/javascript" src="/static/js/google.jsapi.js"></script>
-<script type="text/javascript">
-//  google.load("visualization", "1", {packages:["corechart"]});
-if (window['google'] != undefined && window['google']['loader'] != undefined) {
-if (!window['google']['visualization']) {
-window['google']['visualization'] = {};
-google.visualization.Version = '1.0';
-google.visualization.JSHash = '4c2447db544d51e9c1e1331ad8007df0';
-google.visualization.LoadArgs = 'file\75visualization\46v\0751\46packages\75corechart';
-}
-google.loader.writeLoadTag("script", "/static/js/google.corechart.js", false);
-}
-</script>
-
-<script type="text/javascript">
-function drawDefaultChart() {
-
-    var dataTable = new google.visualization.DataTable();
-      dataTable.addColumn('number', '{{ form.xaxis }}');
-      dataTable.addColumn('number', '{{ form.yaxis }}');
-      dataTable.addColumn({'type': 'string', 'role': 'tooltip', 'p': {'html': true}});
-
-    dataTable.addRows([
-    {% for user, vals in data.data.items %}
-    [{{ vals|get_item:form.xaxis }}, {{ vals|get_item:form.yaxis }}, '<div><a href=""><u><b>{{ data.users|get_item:user }}</b></u></a></div>'],
-    {% endfor %}
-    ]);
-
-    var options = {
-      title: '{{ form.xaxis }} vs. {{ form.yaxis }} comparison',
-      hAxis: {title: '{{ form.xaxis }}', minValue: 0, maxValue: 1},
-      vAxis: {title: '{{ form.yaxis }}', minValue: 0, maxValue: 50},
-    };
-    drawChart(dataTable, options);
-}
-
-function drawChart(dataTable, options) {
-    options["legend"] = 'none';
-    options["tooltip"] = { isHtml: 'true', trigger: 'selection' };
-    var chart = new google.visualization.ScatterChart(document.getElementById('chart_div'));
-
-    chart.draw(dataTable, options);
-}
-
-function obj2num(row) {
-    var xdata = 0;
-    
-    if (typeof row == 'number') {
-        xdata = 0+row;
-    } else {
-        xdata = 0;
-        for (var d in row) {
-            xdata += row[d];
-        }
-    }
-    return xdata;
-}
-
-function json2dataTable(json, xaxis, yaxis) {
-    var dataTable = new google.visualization.DataTable();
-    
-    // 2 data rows and a tooltip.  
-    dataTable.addColumn('number', xaxis);
-    dataTable.addColumn('number', yaxis);
-    dataTable.addColumn({'type': 'string', 'role': 'tooltip', 'p': {'html': true}});
-
-    // 
-    for (var user in json['data']) {
-        var xdata = obj2num(json['data'][user][xaxis]);
-        var ydata = obj2num(json['data'][user][yaxis]);
-        dataTable.addRows([[xdata, ydata, user2tooltip(json, user)]]);
-    }
-    return dataTable;
-  }
-  
-function user2tooltip(json, user) {
-    return "<div class='tooltip'>" + json['users'][user] + "</div>"
-}  
-
-function drawJsonChart(json, xaxis, yaxis) {
-    var options = {
-      title: xaxis + ' vs. ' + yaxis + ' comparison',
-      hAxis: {title: xaxis},
-      vAxis: {title: yaxis},
-    };
-
-    drawChart(json2dataTable(json, xaxis, yaxis), options);
-}
-
-function showJsonData(topic_path, xaxis, yaxis) {
-
-    //
-    if (xaxis != $("#xaxis option:selected").val()) {
-        $("#xaxis").val(xaxis).change();
-        return false;
-    }
-    if (yaxis != $("#yaxis option:selected").val()) {
-        $("#yaxis").val(yaxis).change();
-        return false;
-    }
-    
-    // Get the data
-    var url = "{% url api_data %}?topic_path=" + topic_path + "&xaxis=" + xaxis + "&yaxis=" + yaxis
-//    alert(url);
-    $.getJSON(url, function(json) {
-        window.json = json;
-        drawJsonChart(json, xaxis, yaxis);
-    });
-}
-
-</script>
+<script type="text/javascript" src="/static/js/coachreports/scatter_view.js"></script>
 {% endblock headjs %}
 
 
 {% block headcss %} {{ block.super }}
-<style>
-#table div { margin-top: 25px; }
-.tooltip { padding: 10px; }
-</style>
+<link rel='stylesheet' type='text/css' href='{% static "css/coachreports/scatter_view.css" %}'>
 {% endblock headcss %}
 
+{% block axis_dropdown %}
+    <select id="xaxis" name="xaxis">
+        {% block data_options %}{{ block.super }}{% endblock %}
+    </select>
+    <select id="yaxis" name="yaxis">
+        {% repeatblock data_options %}
+    </select>
+{% endblock axis_dropdown %}
 
-{% block content %}
-<div id="navbar" style="padding-bottom:25px">
-[Navbar for browsing different facility/group/student]
-</div>
-
-<div id="choose">
-    <form id="select_data" name="select_data">
-        {% mkrange 0 2 as axes_range %}
-        {% for ai in axes_range %}
-            {% cycle "xaxis"  "yaxis"   as axis_value silent %}
-            {% cycle "X-axis" "Y-axis" as axis_text %}:
-            {% mkrange 0 5 as option_range %}
-            <select id="{{ axis_value }}" name="{{ axis_value }}">
-            {% for oi in option_range %}
-                {% cycle "pct_mastery" "effort" "ex:attempts"    "ex:streak_progress"      "ex:points"       as option_value silent %}:
-                {% cycle "% Mastery"   "Effort" "Total Attempts" "Average Streak" "Exercise Points" as option_text  silent %}:
-            <option value="{{ option_value}}"{% if option_value = form|get_item:axis_value %} selected{% endif %}>{{ option_text }}</option>
-            {% endfor %}
-        </select>
-        {% endfor %}
-    </form>
-</div>
-
-<div id="google-chart">
-    <div id="chart_div" style="width: 900px; height: 500px;"></div>
-</div>
-
-<script>
-    {% mkrange 0 2 as axes_range %}
-    {% for ai in axes_range %}
-        {% cycle "xaxis"  "yaxis"   as axis_value silent %}
-    $("#{{ axis_value }}").change(function(){
-        showJsonData(
-            "/topics/math/arithmetic/multiplication-division/", 
-            $("#xaxis option:selected").val(),
-            $("#yaxis option:selected").val()
-        );
-    });
-    {% endfor %}
-
-    showJsonData("/topics/math/arithmetic/multiplication-division/", "{{ form.xaxis }}", "{{ form.yaxis }}")
-</script>
-{% endblock content %}

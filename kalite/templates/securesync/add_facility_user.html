@@ -9,20 +9,25 @@
 
 {% block content %}
 
-
 <form method="post" class="basic-form">
-{% csrf_token %}
-<h1>{% if request.is_admin %}
-		{% comment %} Translators: The sentence will be: Add a new student or teacher {% endcomment %}
-		{% trans "Add a new" %}{% if teacher %}{% trans " teacher" %}{% else %}{% trans " student" %}{% endif %}
-    {% else %}
-        {% trans "Sign up for an account" %}
-    {% endif %}
-</h1>
-<p><label>{% trans "Facility: " %}</label>{{ facility }} {% if not singlefacility or request.is_admin %}<a href="?facility=select">{% trans "(Select a different facility)" %}</a></p>{% endif %}
-{{ form.as_p }}
-{% trans "Create user" as create_user %}
-<input type="submit" value="{{ create_user }}" class="submit"/>
+    {% csrf_token %}
+    <h1>{% if request.is_admin %}
+            {% comment %} Translators: The sentence will be: Add a new student or teacher {% endcomment %}
+            {% trans "Add a new" %}{% if teacher %}{% trans " teacher" %}{% else %}{% trans " student" %}{% endif %}
+        {% else %}
+            {% trans "Sign up for an account" %}
+        {% endif %}
+    </h1>
+    <p>
+        <label>{% trans "Facility: " %}</label>{{ facility }}
+        {% if not singlefacility or request.is_admin %}
+        <a href="?facility=select">{% trans "(Select a different facility)" %}</a>
+        {% endif %}
+    </p>
+    {{ form.as_p }}
+    
+    {% trans "Create user" as create_user %}
+    <input type="submit" value="{{ create_user }}" class="submit"/>
 </form>
 
 <script>

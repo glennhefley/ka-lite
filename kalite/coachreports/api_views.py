@@ -19,6 +19,62 @@ from coachreports.forms import DataForm
 from main import topicdata
 
 
+class StatusException(Exception):
+    def __init__(self, message, status_code):
+        super(StatusException, self).__init__(message)
+        self.args = (status_code,)
+        self.status_code = status_code
+
+def get_data_form(request, *args, **kwargs):
+    """Request objects get priority over keyword args"""
+    assert not args, "all non-request args should be keyword args"
+    
+    # Pull the form parameters out of the request or 
+    data = dict()
+    for field in ["facility_id", "group_id", "user_id", "topic_path", "xaxis", "yaxis"]:
+        # Default to empty string, as it makes template handling cleaner later.
+        data[field] = request.REQUEST.get(field, kwargs.get(field, ""))
+    form = DataForm(data = data)
+    
+    
+    if "facility_user" in request.session:
+        user = request.session["facility_user"]
+        group = None if not user else user.group
+        facility = None if not user else user.facility
+        
+        # Fill in default query data
+        if not (form.data["facility_id"] or form.data["group_id"] or form.data["user_id"]):
+        
+            # Defaults:
+            #   Students: only themselves
+            #   Teachers: if nothing is specified, then show their group
+        
+            if request.is_admin:
+                if group:
+                    form.data["group_id"] = group.id
+                elif facility:
+                    form.data["facility_id"] = facility.id
+                else: # not a meaningful default, but responds efficiently (no data)
+                    form.data["user_id"] = user.id
+            else:
+                form.data["user_id"] = user.id    
+        
+        # Authenticate
+        if group and form.data["group_id"] and group.id != form.data["group_id"]: # can't go outside group
+            # We could also redirect
+            HttpResponseForbidden("You cannot choose a group outside of your group.")
+        elif facility and form.data["facility_id"] and facility.id != form.data["facility_id"]:
+            # We could also redirect
+            HttpResponseForbidden("You cannot choose a facility outside of your own facility.")
+        elif not request.is_admin:
+            if not form.data["user_id"]:
+                # We could also redirect
+                HttpResponseForbidden("You cannot choose facility/group-wide data.")
+            elif user and form.data["user_id"] and user.id != form.data["user_id"]:
+                # We could also redirect
+                HttpResponseForbidden("You cannot choose a user outside of yourself.")
+    
+    return form    
 
 def compute_data(types, who, where):
     """
@@ -70,14 +126,14 @@ def compute_data(types, who, where):
                 # ExerciseLog.filter(user__in=who, exercise_id__in=exercises).order_by("user.id")
                 for user in data.keys():
                     ex_logs[user] = query_exlogs(user, exercises, ex_logs[user]) 
-                    data[user][type] = 0 if not ex_logs[user] else 100.*sum([el.complete for el in ex_logs[user]])/float(ex_logs[user].count())
+                    data[user][type] = 0 if not ex_logs[user] else 100.*sum([el.complete for el in ex_logs[user]])/float(len(exercises))
                     
             elif type == "effort":
                 if "ex:attempts" in data[data.keys()[0]] and "vid:total_seconds_watched" in data[data.keys()[0]]:
                     for user in data.keys():
-                        total_attempts = sum(data[user]["ex:attempts"].values())
-                        total_seconds_watched = sum(data[user]["vid:total_seconds_watched"].values())
-                        data[user][type] = total_attempts/10. + total_seconds_watched/750.
+                        avg_attempts = sum(data[user]["ex:attempts"].values())/float(len(exercises))
+                        avg_seconds_watched = sum(data[user]["vid:total_seconds_watched"].values())/float(len(videos))
+                        data[user][type] = avg_attempts/10. + avg_seconds_watched/750.
                 else:
                     types += ["ex:attempts", "vid:total_seconds_watched", "effort"]
             
@@ -108,26 +164,28 @@ def compute_data(types, who, where):
     }
 
 
+"""
 def get_data_form(request):
-
     # fake data
-    return DataForm(data = { # the following defaults are for debug purposes only
-        'facility_id': request.REQUEST.get('facility_id', Facility.objects.filter(name__contains="Wilson Elementary")[0].id),
-        'group_id':    request.REQUEST.get('group_id',    ""),#FacilityGroup.objects.all()[0].id),
-        'user':        request.REQUEST.get('user_id',     ""),
-        'topic_path':  request.REQUEST.get('topic_path',  "/topics/math/arithmetic/multiplication-division/"),
-        'xaxis':       request.REQUEST.get('xaxis',       "pct_mastery"),
-        'yaxis':       request.REQUEST.get('yaxis',       "effort"  ),
+    form = DataForm(data = { # the following defaults are for debug purposes only
+        'facility_id': request.REQUEST.get('facility_id'), #Facility.objects.filter(name__contains="Wilson Elementary")[0].id),
+        'group_id':    request.REQUEST.get('group_id'),#FacilityGroup.objects.all()[0].id),
+        'user_id':     request.REQUEST.get('user_id'),
+        'topic_path':  request.REQUEST.get('topic_path'),#,  "/topics/math/arithmetic/multiplication-division/"),
+        'xaxis':       request.REQUEST.get('xaxis'),#,       "pct_mastery"),
+        'yaxis':       request.REQUEST.get('yaxis'),#,       "effort"  ),
     })
 
+    return form
+"""    
+    
 @csrf_exempt
-@render_to("test.html")
-def api_data(request):
+def api_data(request, xaxis="", yaxis=""):
 #    if request.method != "POST":
 #        return HttpResponseForbidden("%s request not allowed." % request.method)
     
     # Get the request form
-    form = get_data_form(request)#(data=request.REQUEST)
+    form = get_data_form(request, xaxis=xaxis, yaxis=yaxis)#(data=request.REQUEST)
 
     # Query out the data: who?
     if form.data.get("user_id"):
@@ -172,5 +230,10 @@ def api_data(request):
     
     
     
+@csrf_exempt
+def api_friendly_names(request):
+    """api_data returns raw data with identifiers.  This endpoint is a generic endpoint
+    for mapping IDs to friendly names."""
     
     
+    return None

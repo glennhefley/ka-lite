@@ -11,62 +11,72 @@ from django.template.loader import render_to_string
 
 from main.models import VideoLog, ExerciseLog, VideoFile
 from securesync.models import Facility, FacilityUser,FacilityGroup, DeviceZone, Device
-from utils.decorators import require_admin
+#from utils.decorators import require_admin
 from securesync.views import facility_required
 from shared.views import group_report_context
 from coachreports.forms import DataForm
 from main import topicdata
+from coachreports.api_views import StatusException, get_data_form
 
 
-class StatusException(Exception):
-    def __init__(self, message, status_code):
-        super(StatusException, self).__init__(message)
-        self.args = (status_code,)
-        self.status_code = status_code
-
-def get_data_form(request):
-
-    # fake data
-    return DataForm(data = { # the following defaults are for debug purposes only
-        'facility_id': request.REQUEST.get('facility_id'),
-        'group_id':    request.REQUEST.get('group_id'),
-        'user':        request.REQUEST.get('user_id'),
-        'topic_path':  request.REQUEST.get('topic_path'),#/topics/math/arithmetic/multiplication-division/"),
-        'xaxis':       request.REQUEST.get('xaxis'),#pct_mastery"),
-        'yaxis':       request.REQUEST.get('yaxis'),#effort"  ),
-    })
-
+"""
 def get_api_data(request, form):
     api_url = "http%s://%s%s" % ("s" if request.is_secure() else "", request.get_host(), reverse("coachreports.api_views.api_data"))
 
     form = get_data_form(request)
     
-    # Make the api request on the server-side
+    # Make the api request on the server-side,
+    #   this is a good way to test the API while under development
+    #   (rather than calling the function directly)
     response = requests.post(api_url, data=form.data)
     if response.status_code != 200:
         raise StatusException(message=response.text, status_code=response.status_code)
 
     data = json.loads(response.text)
     return data 
+"""
 
 #@require_admin
 @render_to("coachreports/scatter_view.html")
-def scatter_view(request):
+def scatter_view(request, xaxis="", yaxis=""):
+    return scatter_view_context(request, xaxis=xaxis, yaxis=yaxis)
 
-    form = get_data_form(request)
+
+def scatter_view_context(request, topic_path="/topics/math/arithmetic/", *args, **kwargs):
+
+    # Get the form, and retrieve the API data
+    form = get_data_form(request, topic_path=topic_path, *args, **kwargs)
+        
+    data = []
     try:
-        data = get_api_data(request, form)
+        pass#data = get_api_data(request, form)
     except StatusException as se:
         if se.status_code == 404:
             return HttpResponseNotFound(se.message)
         else:
             return HttpResponseServerError(se.message)
     
+    
+    # The API tries to be lean and mean with it's response objects and text,
+    #   and so mostly sends unique identifiers of objects, rather than
+    #   full data / names.
+    #
+    # Let's expose an end-point for retrieving user-friendly names
+    
     return {
         "form": form.data,
         "data": data,
-    }        
+    }
+    
 
+@render_to("coachreports/timeline_view.html")
+def timeline_view(request, xaxis="", yaxis=""):
+    return scatter_view_context(request, xaxis=xaxis, yaxis=yaxis)
+
+@render_to("coachreports/student_view.html")
+def student_view(request, xaxis="", yaxis=""):
+    context = scatter_view_context(request, xaxis=xaxis, yaxis=yaxis)
+    return context
 
 #@require_admin
 @render_to("coachreports/table_view.html")
@@ -96,7 +106,6 @@ def landing_page(request):
 
 
 
-#@require_admin
 @facility_required
 @render_to("coachreports/old2.html")
 def old_coach_report(request, facility, report_type="exercise"):

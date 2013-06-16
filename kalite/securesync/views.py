@@ -192,10 +192,10 @@ def add_facility_student(request):
 @render_to("securesync/add_facility_user.html")
 @facility_required
 def add_facility_user(request, facility, is_teacher):
-    if is_teacher:
-        Form = FacilityTeacherForm
-    else:
-        Form = FacilityUserForm
+#    if is_teacher:
+#        Form = FacilityTeacherForm
+#    else:
+    Form = FacilityUserForm
     if request.method == "POST":
         form = Form(request, data=request.POST, initial={"facility": facility})
         if form.is_valid():
@@ -210,12 +210,12 @@ def add_facility_user(request, facility, is_teacher):
         messages.error(request, _("You must add a facility before creating a user"))
         return HttpResponseRedirect(reverse("add_facility"))
     else:
-        if is_teacher:
-            form = Form(request, initial={"facility": facility})
-        else:
-            form = Form(request, initial={"facility": facility, "group": request.GET.get("group", None)})
-    if not is_teacher:
-        form.fields["group"].queryset = FacilityGroup.objects.filter(facility=facility)
+#        if is_teacher:
+#            form = Form(request, initial={"facility": facility})
+#        else:
+        form = Form(request, initial={"facility": facility, "group": request.GET.get("group", None)})
+#    if not is_teacher:
+    form.fields["group"].queryset = FacilityGroup.objects.filter(facility=facility)
     if Facility.objects.count() == 1:
         singlefacility = True
     else:

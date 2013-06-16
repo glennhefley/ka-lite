@@ -1,6 +1,9 @@
+"""
+"""
 import glob, os
 import json
 import logging
+from functools import partial
 
 import settings
 from main import topicdata
@@ -142,18 +145,30 @@ db_name: name of database to connect to (Old method)
     return (topic, nvideos_local, nvideos_known)
 
     
+def get_topic_by_path(path):
+    import pdb; pdb.set_trace()        
+    
+def get_all_leaves(node, leaf_type=None):
+    import pdb; pdb.set_trace()
+    
+def get_topic_exercises(topic_id=None, path=None, sort=True, data_path=settings.DATA_PATH):
+    assert (topic_id or path) and not (topic_id and path), "Specify topic_id or path, not both."
+    
+    if not path:
+        topic_node = filter(partial(lambda node,name: node['id']==name, name=topic_id), topicdata.NODE_CACHE['Topic'].values())
+        if not topic_node:
+            return []
+        path = topic_node[0]['path']
 
+    # More efficient way
+    #topic_node = get_topic_by_path(path)
+    #exercises = get_all_leaves(topic_node, leaf_type='Video')
     
-def get_topic_exercises(topic_id, get_path=False, sort=True, data_path=settings.DATA_PATH):
-    
-    # Get the exercises
-    exercises = json.loads(open("%stopicdata/%s.json" % (data_path, topic_id)).read())
-    if sort:
-        exercises = sorted(exercises, key=lambda e: (e["h_position"], e["v_position"]))
-    if get_path:
-        for ex in exercises:
-            ex["path"] = topicdata.NODE_CACHE["Exercise"][ex["name"]]["path"]
-    
+    # Brute force way
+    exercises = []
+    for ex in topicdata.NODE_CACHE['Exercise'].values():
+        if ex['path'].startswith(path):
+            exercises.append(ex)
     return exercises
 
 
