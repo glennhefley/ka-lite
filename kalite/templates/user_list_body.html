@@ -22,7 +22,7 @@
 
     {% if not users %}
         <div style="clear: both;"></div>
-        {% if not groups %}
+        {% if not request.GET.group %}
         <p><div class="subtitle">{% trans "Please select a group above." %}</div></p>
         {% else %}
         <p><div class="subtitle">{% trans "No users.  Please select another group above." %}</div></p>
@@ -39,9 +39,12 @@
                     {% endif %}
                 {% endfor %}
         </select>
+        {% if request.GET.group != "Ungrouped" %}
         <button id="removegroup">{% trans "Remove Users from Group" %}</button>
-<!--         <button id="newuser">{% trans "Add New User to Group" %}</button> -->
-        <button id="delete">{% trans "Delete Users" %}</button>
+   <!-- <button id="delete">{% trans "Delete Users" %}</button> -->
+        <!-- TODO: Turn from link to button type functionality, so that can add user within coach report list and come back to user list at same point. -->
+        <a href="{% url add_facility_student %}?facility={{ facility.id }}&group={{ request.GET.group }}" id="newuser">{% trans "Add New User to Group" %}</a>
+        {% endif %}
     </div>
     <div class="pagination">
         <span class="step-links">
