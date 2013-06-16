@@ -69,6 +69,8 @@ function plotJsonData(chart_div, base_url, topic_path, xaxis, yaxis) {
         $("#loading").text("Drawing " + xaxis + " " + yaxis); 
         drawJsonChart(chart_div, json, xaxis, yaxis);
         $("#loading").text(""); 
+    }).fail(function(data) {
+        $("#loading").text("Failure (" + data.status + "): " + data.responseText); 
     });
     $("#loading").text("Loading " + xaxis + " " + yaxis); 
 }

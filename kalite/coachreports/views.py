@@ -11,7 +11,7 @@ from django.template.loader import render_to_string
 
 from main.models import VideoLog, ExerciseLog, VideoFile
 from securesync.models import Facility, FacilityUser,FacilityGroup, DeviceZone, Device
-from utils.decorators import require_admin
+#from utils.decorators import require_admin
 from securesync.views import facility_required
 from shared.views import group_report_context
 from coachreports.forms import DataForm
@@ -36,16 +36,16 @@ def get_api_data(request, form):
     return data 
 """
 
-@require_admin
+#@require_admin
 @render_to("coachreports/scatter_view.html")
 def scatter_view(request, xaxis="", yaxis=""):
     return scatter_view_context(request, xaxis=xaxis, yaxis=yaxis)
 
 
-def scatter_view_context(request, xaxis="", yaxis=""):
+def scatter_view_context(request, topic_path="/topics/math/arithmetic/", *args, **kwargs):
 
     # Get the form, and retrieve the API data
-    form = get_data_form(request, xaxis=xaxis, yaxis=yaxis, topic_path="/topics/math/arithmetic/")
+    form = get_data_form(request, topic_path=topic_path, *args, **kwargs)
         
     data = []
     try:
@@ -69,10 +69,14 @@ def scatter_view_context(request, xaxis="", yaxis=""):
     }
     
 
-@render_to("coachreports/student_view.html")
-def student_view(request):
-    return scatter_view_context(request)
+@render_to("coachreports/timeline_view.html")
+def timeline_view(request, xaxis="", yaxis=""):
+    return scatter_view_context(request, xaxis=xaxis, yaxis=yaxis)
 
+@render_to("coachreports/student_view.html")
+def student_view(request, xaxis="", yaxis=""):
+    context = scatter_view_context(request, xaxis=xaxis, yaxis=yaxis)
+    return context
 
 #@require_admin
 @render_to("coachreports/table_view.html")
@@ -102,7 +106,6 @@ def landing_page(request):
 
 
 
-#@require_admin
 @facility_required
 @render_to("coachreports/old2.html")
 def old_coach_report(request, facility, report_type="exercise"):

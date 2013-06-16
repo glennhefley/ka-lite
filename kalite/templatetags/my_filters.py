@@ -70,7 +70,9 @@ def mkrange(parser, token):
 
     return RangeNode(parser, range_args, context_name)
 
-from django import template
+from django.template import Node, VariableNode
+from django.template.loader_tags import BlockNode, ExtendsNode
+from django.template.loader import get_template
 @register.tag
 def include_block(parser, token):
     """ From http://stackoverflow.com/questions/2687173/django-how-can-i-get-a-block-from-a-template
@@ -84,7 +86,7 @@ def include_block(parser, token):
     #pass vars with stripped quotes 
     return IncludeBlockNode(include_file.replace('"', ''), block_name.replace('"', ''))
 
-class IncludeBlockNode(template.Node):
+class IncludeBlockNode(Node):
     def __init__(self, include_file, block_name):
         self.include_file = include_file
         self.block_name = block_name
@@ -96,9 +98,11 @@ class IncludeBlockNode(template.Node):
         '''
         for node in template:
             if isinstance(node, BlockNode) and node.name == name:
+                import pdb; pdb.set_trace()
                 return node.nodelist.render(context)
             elif isinstance(node, ExtendsNode):
                 return self._get_node(node.nodelist, context, name)
+                
 
         raise Exception("Node '%s' could not be found in template." % name)
 

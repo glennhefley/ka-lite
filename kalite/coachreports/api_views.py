@@ -36,12 +36,12 @@ def get_data_form(request, *args, **kwargs):
         data[field] = request.REQUEST.get(field, kwargs.get(field, ""))
     form = DataForm(data = data)
     
- 
+    
     if "facility_user" in request.session:
         user = request.session["facility_user"]
         group = None if not user else user.group
         facility = None if not user else user.facility
-
+        
         # Fill in default query data
         if not (form.data["facility_id"] or form.data["group_id"] or form.data["user_id"]):
         
