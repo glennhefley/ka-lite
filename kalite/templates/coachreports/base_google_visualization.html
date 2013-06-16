@@ -93,6 +93,11 @@ function plotJsonData(chart_div, base_url, topic_path, xaxis, yaxis) {
 
 
 {% block content %}
+    
+<h2 class="main-headline">{% block headline %}{% endblock headline %}</h2>
+
+{% block navbar %}{{ block.super }}{% endblock navbar %}
+
 <div id="choose">
     <form id="select_data" name="select_data">
 {% block axis_dropdown %}

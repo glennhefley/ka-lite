@@ -13,10 +13,13 @@
 <link rel='stylesheet' type='text/css' href='{% static "css/coachreports/scatter_view.css" %}'>
 {% endblock headcss %}
 
+{% block headline %}Scatter plot name {% endblock headline %}
 {% block axis_dropdown %}
+    X-Axis:
     <select id="xaxis" name="xaxis">
         {% block data_options %}{{ block.super }}{% endblock %}
     </select>
+    Y-Axis:
     <select id="yaxis" name="yaxis">
         {% repeatblock data_options %}
     </select>

@@ -11,7 +11,7 @@ from django.template.loader import render_to_string
 
 from main.models import VideoLog, ExerciseLog, VideoFile
 from securesync.models import Facility, FacilityUser,FacilityGroup, DeviceZone, Device
-#from utils.decorators import require_admin
+from utils.decorators import require_login
 from securesync.views import facility_required
 from shared.views import group_report_context
 from coachreports.forms import DataForm
@@ -74,7 +74,7 @@ def timeline_view(request, xaxis="", yaxis=""):
     return scatter_view_context(request, xaxis=xaxis, yaxis=yaxis)
 
 @render_to("coachreports/student_view.html")
-def student_view(request, xaxis="", yaxis=""):
+def student_view(request, xaxis="pct_mastery", yaxis="ex:attempts"):
     context = scatter_view_context(request, xaxis=xaxis, yaxis=yaxis)
     return context
 
@@ -97,11 +97,16 @@ def table_view(request):
     }        
 
 
-#@require_admin
+@require_login
 @render_to("coachreports/landing_page.html")
 def landing_page(request):
 
+    form = get_data_form(request)
+    if not form.data.get("topic_path"):
+        form.data["topic_path"] = "/topics/math/arithmetic/"
+        
     return {
+        "form": form.data
     }
 
 

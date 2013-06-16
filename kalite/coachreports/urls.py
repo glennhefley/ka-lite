@@ -8,7 +8,7 @@ urlpatterns = patterns('coachreports.views',
     url(r'^scatter/$', 'scatter_view', {}, 'scatter_view'),
     url(r'^scatter/(?P<xaxis>\w+)/(?P<yaxis>\w+)/$', 'scatter_view', {}, 'scatter_view'),
     url(r'^timeline/$', 'timeline_view', {}, 'timeline_view'),
-    url(r'^timeline/(?P<xaxis>\w+)/(?P<yaxis>\w+)/$', 'timeline_view', {}, 'timeline_view'),
+    url(r'^timeline/(?P<xaxis>\w+)/(?P<yaxis>\w+)/$', 'timeline_view', {}, 'timeline_view2'),
     url(r'^student/$', 'student_view', {}, 'student_view'),
     url(r'^student/(?P<xaxis>\w+)/(?P<yaxis>\w+)/$', 'student_view', {}, 'student_view'),
 

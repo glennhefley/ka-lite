@@ -24,6 +24,15 @@ def require_admin(handler):
         return HttpResponseRedirect(reverse("login") + "?next=" + request.path)
     return wrapper_fn
     
+def require_login(handler):
+    def wrapper_fn(request, *args, **kwargs):
+        if request.user.is_authenticated() or "facility_user" in request.session:
+            return handler(request, *args, **kwargs)
+        # Translators: Please ignore the html tags e.g. "Please login as one below, or <a href='%s'>go to home.</a>" is simply "Please login as one below, or go to home."
+        messages.error(request, mark_safe(_("To view the page you were trying to view, you need to be logged in. Please login as one below, or <a href='%s'>go to home.</a>") % reverse("homepage")))
+        return HttpResponseRedirect(reverse("login") + "?next=" + request.path)
+    return wrapper_fn
+    
 
 
 def central_server_only(handler):
