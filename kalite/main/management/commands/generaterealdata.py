@@ -21,7 +21,7 @@ import securesync
 from main.models import ExerciseLog, VideoLog
 import random
 import json
-from math import exp, sqrt, ceil
+from math import exp, sqrt, ceil, floor
 from main import topicdata
 import logging
 
@@ -177,10 +177,19 @@ def generate_fake_exercise_logs(topics=topics,facility_users=None, start_date=da
                 user.notes = json.dumps(user_settings)
                 user.save()
                 
+            # Problem:
+            #   Not realistic for students to have lots of unfinished exercises.
+            #   If they start them, they tend to get stuck, right?
+            #
+            # So, need to make it more probable that they will finish an exercise,
+            #   and less probable that they start one.
+            #
+            # What we need is P(streak|started), not P(streak)
+            
             #speed_of_learning, effort_level, time_in_program
             # Probability of doing any particular exercise
             p_exercise = 0.5*user_settings["effort_level"] + 0.5*user_settings["time_in_program"]
-            #date_diff_started = date_diff*user_settings["time_in_program"] # when this user started in the program, relative to NOW
+            date_diff_started = datetime.timedelta(seconds=date_diff.total_seconds()*user_settings["time_in_program"]) # when this user started in the program, relative to NOW
             print "# exercises: %d; p(exercise)=%4.3f, user settings: %s" % (len(exercises), p_exercise, json.dumps(user_settings))
             
             # # of exercises is related to 
@@ -189,8 +198,9 @@ def generate_fake_exercise_logs(topics=topics,facility_users=None, start_date=da
                     continue
                 
                 # 
-                p_completed = 0.33*user_settings["effort_level"] + 0.66*user_settings["speed_of_learning"]
-                p_attempts = 0.33*user_settings["effort_level"] + 0.55*user_settings["time_in_program"]
+                #import pdb; pdb.set_trace()
+                p_completed = (0.33*user_settings["effort_level"] + 0.66*user_settings["speed_of_learning"]) * 2 * user_settings["time_in_program"]
+                p_attempts = (0.33*user_settings["effort_level"] + 0.55*user_settings["time_in_program"])/p_completed/5
                 
                 attempts = random.random() * p_attempts * 30 + 10
                 progress_sample = (p_completed - random.random())
@@ -198,11 +208,25 @@ def generate_fake_exercise_logs(topics=topics,facility_users=None, start_date=da
                 streak_progress = 100 if completed else 100*progress_sample/(p_completed-1.0)
                 points   = attempts * 10 * min(1, user_settings["speed_of_learning"]*1.5)
                 
-                #date_completed = max(datetime.timedelta(days=0), 
+                # Choose a rate of exercises, based on their effort level.
+                #   Compute the latest possible start time.
+                #   Then sample a start time between their start time
+                #   and the latest possible start_time
+                rate_of_exercises = user_settings["effort_level"] # # exercises per day
+                time_for_attempts = min(datetime.timedelta(days=rate_of_exercises*attempts), date_diff_started) # protect with min
+                time_delta_completed = datetime.timedelta(seconds=random.randint(int(time_for_attempts.total_seconds()), int(date_diff_started.total_seconds())))
+                date_completed = datetime.datetime.now() - time_delta_completed 
                 
                 # Always create new
-                logging.info("Creating exercise log: %-12s: %-25s (%d points, %d attempts, %d%% streak)" % (user.first_name, exercise["name"],  int(points), int(attempts), int(streak_progress)))
-                log = ExerciseLog(user=user, exercise_id=exercise["name"], attempts=int(attempts), streak_progress=int(streak_progress), points=int(points))
+                logging.info("Creating exercise log: %-12s: %-25s (%d points, %d attempts, %d%% streak on %s (delta-%d))" % (user.first_name, exercise["name"],  int(points), int(attempts), int(floor(streak_progress/10))*10, str(date_completed), time_delta_completed.total_seconds()))
+                log = ExerciseLog(
+                    user=user, 
+                    exercise_id=exercise["name"], 
+                    attempts=int(attempts), 
+                    streak_progress=int(floor(streak_progress/10))*10, 
+                    points=int(points), 
+                    completion_timestamp=date_completed,
+                    completion_counter=(date_completed-start_date).total_seconds())
                 log.full_clean()
                 log.save()
                 
