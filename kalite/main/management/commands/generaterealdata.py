@@ -24,7 +24,7 @@ from main import topicdata
 import logging
 
 import settings
-from utils.topic_tools import get_videos_for_topic
+from utils.topic_tools import get_topic_videos
 
 firstnames = ["Richard","Kwame","Jamie","Alison","Nadia","Zenab","Guan","Dylan","Vicky","Melanie","Michelle","Yamira","Elena","Thomas","Jorge","Lucille","Arnold","Rachel","Daphne","Sofia"]
 
