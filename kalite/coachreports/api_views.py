@@ -143,7 +143,7 @@ def compute_data(types, who, where):
                     types += ["ex:attempts", "vid:total_seconds_watched", "effort"]
             
 
-            # Just querying out data directly: Exercise
+            # Just querying out data directly: Video
             elif type.startswith("vid:") and type[4:] in [f.name for f in VideoLog._meta.fields]:
                 videos = query_videos(videos)
                 for user in data.keys():
