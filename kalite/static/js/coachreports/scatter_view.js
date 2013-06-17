@@ -6,6 +6,25 @@ function drawChart(chart_div, dataTable, options) {
     chart.draw(dataTable, options);
 }
 
+function bySortedValue(obj, callback, context) {
+    var tuples = [];
+
+    for (var key in obj) tuples.push([key, obj[key]]);
+
+    tuples.sort(function(a, b) { return a[1] < b[1] ? 1 : a[1] > b[1] ? -1 : 0 });
+
+    return tuples;
+}
+
+function tablifyThis(tuples, urlpath, descriptor) {
+    var table = "<table class='detail'>";
+    for (var i in tuples) {
+        table += "<tr><td><a href='" + urlpath + tuples[i][0] + "'>" + tuples[i][0] + "</a></td>" + "<td class='data'>" + tuples[i][1] + descriptor +"</td>";
+    }
+    table += "</table>";
+    return table;
+}
+
 function obj2num(row) {
     var xdata = 0;
     
@@ -41,7 +60,7 @@ function user2tooltip(json, user, xaxis, yaxis) {
     var exercises = json['exercises'];
     var videos = json['videos'];
     var tooltip = "<div class='tooltip'>";
-    tooltip += "<div class='username'>" + json['users'][user] + "</div>";
+    tooltip += "<div id='legend'><div class='username'>" + json['users'][user] + "</div><div class='legend'><div class='struggling'></div>Struggling</div><div class='legend'><div class='notattempted'></div>Not Attempted</div><div class='legend'><div class='attempted'></div>Attempted</div></div>";
     for (var ai in axes) {
         if(axes[ai] == 'pct_mastery' | axes[ai] == 'effort'){
             axes[ai] = 'ex:attempts';
@@ -56,27 +75,28 @@ function user2tooltip(json, user, xaxis, yaxis) {
         if (stat_types.length < 2)  // should never actually hit this
             stat_types = ["[Derived]", "[Derived]"];
         
-        var struggling = "<div class='struggling'><table class='detail'>";
-        var attempted = "<div class='attempted'><table class='detail'>";
-        var notattempted = "<div class='notattempted'><table class='detail'>";
+        var struggling = "<div class='struggling'>";
+        var attempted = "<div class='attempted'>";
+        var notattempted = "<div class='notattempted'>";
+        var struggles = {}
+        var attempts = {}
+        var notattempts = {}
         if (stat_types[0] == "ex") {
-            struggling += "<tr><th>" + "Exercise" + "</th><th>" + stat_types[1] + "</th>";
-            attempted += "<tr><th>" + "Exercise" + "</th><th>" + stat_types[1] + "</th>";
-            notattempted += "<tr><th>" + "Exercise" + "</th>";
             for (var i in exercises) {
-                var url = "/exercise/" + exercises[i]; // need to funnel in the topic_path here
                 if (exercises[i] in row) {
                     d = exercises[i]
-                    inc = "<tr><td><a href='" + url + "'>" + d + "</a></td>" + "<td>" + row[d] + "</td></tr>";
-                    if (parseInt(row[d]) >= 30) {
-                        struggling += inc;
+                    if (parseInt(row[d]) >= 30) { // TODO: Get mastery and struggling data from API to check this more rigorously
+                        struggles[d] = parseInt(row[d]);
                     } else {
-                        attempted += inc;
+                        attempts[d] = parseInt(row[d]);
                     }
                 } else {
-                    notattempted += "<tr><td><a href='" + url + "'>" + exercises[i] + "</a></td>"; 
+                    notattempts[exercises[i]] = 0;
                 }
             }
+            struggling += tablifyThis(bySortedValue(struggles), "/exercise/", " attempts") + "</div>"; // TODO: need to funnel in the topic_path here
+            attempted += tablifyThis(bySortedValue(attempts), "/exercise/", " attempts") + "</div>"; // need to funnel in the topic_path here
+            notattempted += tablifyThis(bySortedValue(notattempts), "/exercise/", " attempts") + "</div>"; // need to funnel in the topic_path here
         } else {
             attempted += "<tr><th>" + "Video" + "</th><th>" + stat_types[1] + "</th>";
             notattempted += "<tr><th>" + "Video" + "</th>";
@@ -90,9 +110,6 @@ function user2tooltip(json, user, xaxis, yaxis) {
                 }
             }
         }
-        struggling += "</table></div>";
-        attempted += "</table></div>";
-        notattempted += "</table></div>";
         tooltip += (stat_types[0] == "ex" ? struggling : "") + notattempted + attempted;
     }
     tooltip += "</div>"
