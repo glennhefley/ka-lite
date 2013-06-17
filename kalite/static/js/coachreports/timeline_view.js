@@ -38,15 +38,30 @@ function json2dataTable_timeline(json, xaxis, yaxis) {
         
         // Now create a data table
         var data_array = [];
+        
+        var multiplier
+        
+        switch (yaxis) {
+            case "pct_mastery":
+                multiplier = 100/json['exercises'].length;
+                break;
+            case "ex:attempts":
+                multiplier = 1/json['exercises'].length;
+                break;
+            default:
+                multiplier = 1;
+                break;
+        }
+        
         for (ri=0; ri<good_xdata.length; ++ri) {
         
             var timepoint_array = [null, null]; // xval, tooltip
             for (var i=0; i<nusers; ++i) { // add people
                 timepoint_array.push(null);
             }
-
+            
             timepoint_array[0] = good_xdata[ri];// console.log(data_array[0]);
-            timepoint_array[1+ui] = good_ydata[ri];
+            timepoint_array[1+ui] = multiplier*good_ydata[ri];
             timepoint_array[1+nusers] = user2tooltip_timeline(json, uid, xaxis, yaxis);//['users'][uid];
             
             data_array.push(timepoint_array);
