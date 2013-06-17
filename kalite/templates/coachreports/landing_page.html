@@ -2,8 +2,10 @@
 
 {% load i18n %}
 {% load staticfiles %}
+{% load repeatblock %}
 
 {% block navbar_topics %}{% endblock navbar_topics %}
+{% block navbar_makelink %}{% endblock navbar_makelink %}
 {% block headcss %}{{ block.super }}
 <link rel='stylesheet' type='text/css' href='{% static "/static/css/landing-page.css" %}'>
 <style>
@@ -40,6 +42,13 @@ td {
 td.links {
     text-align: center;
 }
+ul.other {
+    font-size:18px;
+}
+ul.other li {
+    font-size: 16px;
+    margin-left: 0px;
+}
 </style>
 {% endblock headcss %}
 
@@ -52,7 +61,7 @@ td.links {
         <div class="clearfix">
             <div class="separate">
                 <div class="vertical-shadow suggested-action">
-                    <a class="changeable-link" href="{% url old_coach_report %}">
+                    <a class="changeable-link" href="{% url old_coach_report %}?{% block topic_paths %}{% for path in form.topic_path %}topic_path={{ path }}&{% endfor %}{% endblock topic_paths %}">
                         <h2 class="suggested-action-title">{% trans "Explore class engagement" %}</h2>
                         <div class="suggested-action-image-link" style="background-image: url({% static "images/coach-report-table.png" %});"></div>
                     </a>
@@ -60,7 +69,7 @@ td.links {
             </div>
             <div class="separate">
                 <div class="vertical-shadow suggested-action">
-                    <a class="changeable-link" href="{% url timeline_view %}">
+                    <a class="changeable-link" href="{% url timeline_view %}?{% repeatblock topic_paths %}">
                         <h2 class="suggested-action-title">{% trans "Explore student mastery over time" %}</h2>
                         <div class="suggested-action-image-link" style="background-image: url({% static "images/coach-report-table.png" %});"></div>
                     </a>
@@ -68,31 +77,31 @@ td.links {
             </div>
             <div class="separate">
                 <div class="vertical-shadow suggested-action">
-                    <a class="changeable-link" href="{% url scatter_view xaxis='pct_mastery' yaxis='effort' %}">
+                    <a class="changeable-link" href="{% url scatter_view xaxis='pct_mastery' yaxis='effort' %}?{% repeatblock topic_paths %}">
                         <h2 class="suggested-action-title">{% trans "Explore student effort and achievement" %}</h2>
                         <div class="suggested-action-image-link" style="background-image: url({% static "images/coach-report-scatter.png" %});"></div>
                     </a>
                 </div>
             </div>
         </div>
-        <!-- <div class="separate">
-            <div class="clearfix">
-                <ul>
-                    <li><a href="{% url timeline_view2 xaxis='6_months' yaxis='pct_mastery' %}?topic_path={{ form.topic_path }}" style="font-size: 24px">Mastery over the past 6 months</a></li>
+        
+        <div class="clearfix">
+            <div class="separate">
+                <ul class="other"> Also try:
+                <li><a class="changeable-link" href="{% url old_coach_report report_type='video'%}?{% repeatblock topic_paths %}">Old coach report (with video)</a></li>
                 </ul>
             </div>
-            <div class="clearfix">
-                <ul>
-                    <li><a href="{% url scatter_view xaxis='pct_mastery' yaxis='effort' %}?topic_path={{ form.topic_path }}" style="font-size: 24px">Mastery vs. Effort</a></li>
+            <div class="separate">
+                <ul class="other">Also try:
+                    <li><a class="changeable-link" href="{% url timeline_view2 xaxis='6_months' yaxis='pct_mastery' %}?{% repeatblock topic_paths %}">Mastery over the past 6 months</a></li>
                 </ul>
             </div>
-            <div class="clearfix">
-                <ul>
-                <li><a href="{% url old_coach_report %}" style="font-size: 24px">Old coach report</a></li>
-                <li><a href="{% url old_coach_report report_type='video'%}" style="font-size: 24px">Old coach report (with video)</a></li>
+            <div class="separate">
+                <ul class="other">Also try:
+                    <li><a class="changeable-link" href="{% url scatter_view xaxis='pct_mastery' yaxis='effort' %}?{% repeatblock topic_paths %}">Mastery vs. Effort</a></li>
                 </ul>
             </div>
-        </div> -->
+        </div>
     </div>
 </div>
 {% block endjs %}{{ block.super }}{% endblock endjs %}
