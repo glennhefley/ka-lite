@@ -77,6 +77,13 @@ function stat2name(stat) {
             return children[opt].text;
         }
     }
+
+    var children = $("#yaxis option");
+    for (opt in children) {
+        if (children[opt].value == stat) {        
+            return children[opt].text;
+        }
+    }
     return null;
 }
 
@@ -127,7 +134,7 @@ function plotJsonData(chart_div, base_url, props) {
         if (data.responseText == "too many SQL variables") {
             errorMsg = "Too many topics; please select fewer topics and retry."
         } else {
-            "Failure (" + data.status + "): " + data.responseText;
+            errorMsg = "Failure (" + data.status + "): " + data.responseText;
         }
         $("#loading").text(errorMsg);
     });
@@ -193,7 +200,9 @@ function plotTopics(topic_paths) {
             {% block data_options %}
                 <option value="">----</option>
                 {% for stat in stats %}
+                {% if stat.type == "number" %}
                 <option value="{{ stat.key }}"{% if stat.key = form|get_item:axis_value %} selected{% endif %}>{{ stat.name }}</option>
+                {% endif %}
                 {% endfor %}
             {% endblock data_options %}
         {% endblock axis_dropdown %}

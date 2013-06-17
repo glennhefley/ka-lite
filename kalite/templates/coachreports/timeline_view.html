@@ -5,23 +5,27 @@
 {% load staticfiles %}
 
 {% block headjs %} {{ block.super }}
-<script type="text/javascript" src="/static/js/coachreports/scatter_view.js"></script>
+<script type="text/javascript" src="/static/js/coachreports/timeline_view.js"></script>
 {% endblock headjs %}
 
 
 {% block headcss %} {{ block.super }}
-<link rel='stylesheet' type='text/css' href='{% static "css/coachreports/scatter_view.css" %}'>
+<link rel='stylesheet' type='text/css' href='{% static "css/coachreports/timeline_view.css" %}'>
 {% endblock headcss %}
 
 {% block headline %}Scatter plot name {% endblock headline %}
 {% block axis_dropdown %}
     X-Axis:
     <select id="xaxis" name="xaxis">
-        {% block data_options %}{{ block.super }}{% endblock %}
+        {% for stat in stats %}
+        {% if stat.type == "datetime" %}
+        <option value="{{ stat.key }}"{% if stat.key = form|get_item:axis_value %} selected{% endif %}>{{ stat.name }}</option>
+        {% endif %}
+        {% endfor %}
     </select>
     Y-Axis:
     <select id="yaxis" name="yaxis">
-        {% repeatblock data_options %}
+        {% block data_options %}{{ block.super }}{% endblock %}
     </select>
 {% endblock axis_dropdown %}
 

@@ -2,6 +2,7 @@ import datetime, re, json, sys, logging
 from annoying.decorators import render_to
 from annoying.functions import get_object_or_None
 from functools import partial
+from collections import OrderedDict
 
 from django.utils import simplejson
 from django.http import HttpResponse, HttpResponseRedirect, HttpResponseForbidden, HttpResponseNotFound, HttpResponseServerError
@@ -145,7 +146,7 @@ def compute_data(types, who, where):
     videos = None
 
     # Initialize an empty dictionary of data, video logs, exercise logs, for each user
-    data     = dict(zip([w.id for w in who], [dict() for i in range(len(who))]))
+    data     = OrderedDict(zip([w.id for w in who], [dict() for i in range(len(who))])) #maintain the order of the users
     vid_logs = dict(zip([w.id for w in who], [None   for i in range(len(who))]))
     ex_logs  = dict(zip([w.id for w in who], [None   for i in range(len(who))]))
 
@@ -160,8 +161,8 @@ def compute_data(types, who, where):
     query_videos    = partial(lambda v,sf: v if v is not None else [vid["youtube_id"] for vid in filter(sf, topicdata.NODE_CACHE['Video'].values())],sf=search_fun)
 
     # Exercise log and video log dictionary (key: user)
-    query_exlogs    = lambda u,ex,el:  el if el is not None else ExerciseLog.objects.filter(user=u, exercise_id__in=ex)
-    query_vidlogs   = lambda u,vid,vl: vl if vl is not None else VideoLog.objects.filter(user=u, youtube_id__in=vid)
+    query_exlogs    = lambda u,ex,el:  el if el is not None else ExerciseLog.objects.filter(user=u, exercise_id__in=ex).order_by("completion_timestamp")
+    query_vidlogs   = lambda u,vid,vl: vl if vl is not None else VideoLog.objects.filter(user=u, youtube_id__in=vid).order_by("completion_timestamp")
     
     # No users, don't bother.
     if len(who)>0:
@@ -169,6 +170,9 @@ def compute_data(types, who, where):
             if type in data[data.keys()[0]]: # if the first user has it, then all do; no need to calc again.
                 continue
             
+            #
+            # These are summary stats: you only get one per user
+            #
             if type == "pct_mastery":
                 exercises = query_exercises(exercises)
             
@@ -189,19 +193,23 @@ def compute_data(types, who, where):
                     types += ["ex:attempts", "vid:total_seconds_watched", "effort"]
             
 
+            #
+            # These are detail stats: you get many per user
+            #
+            
             # Just querying out data directly: Video
             elif type.startswith("vid:") and type[4:] in [f.name for f in VideoLog._meta.fields]:
                 videos = query_videos(videos)
                 for user in data.keys():
                     vid_logs[user] = query_vidlogs(user, videos, vid_logs[user])
-                    data[user][type] = dict([(v.youtube_id, getattr(v, type[4:])) for v in vid_logs[user]])
+                    data[user][type] = OrderedDict([(v.youtube_id, getattr(v, type[4:])) for v in vid_logs[user]])
         
             # Just querying out data directly: Exercise
             elif type.startswith("ex:") and type[3:] in [f.name for f in ExerciseLog._meta.fields]:
                 exercises = query_exercises(exercises)
                 for user in data.keys():
                     ex_logs[user] = query_exlogs(user, exercises, ex_logs[user])
-                    data[user][type] = dict([(el.exercise_id, getattr(el,type[3:])) for el in ex_logs[user]])
+                    data[user][type] = OrderedDict([(el.exercise_id, getattr(el,type[3:])) for el in ex_logs[user]])
             
             # Unknown requested quantity     
             else:
@@ -232,11 +240,11 @@ def api_data(request, xaxis="", yaxis=""):
     elif form.data.get("group_id"):
         facility = []
         groups = [get_object_or_404(FacilityGroup, id=form.data.get("group_id"))]
-        users = FacilityUser.objects.filter(group=form.data.get("group_id"))
+        users = FacilityUser.objects.filter(group=form.data.get("group_id"), is_teacher=False).order_by("last_name", "first_name")
     elif form.data.get("facility_id"):
         facility = get_object_or_404(Facility, id=form.data.get("facility_id"))
         groups = FacilityGroup.objects.filter(facility__in=[form.data.get("facility_id")])
-        users = FacilityUser.objects.filter(group__in=groups)
+        users = FacilityUser.objects.filter(group__in=groups, is_teacher=False).order_by("last_name", "first_name")
     else:
         return HttpResponseNotFound("Did not specify facility, group, nor user.")
 
@@ -252,7 +260,7 @@ def api_data(request, xaxis="", yaxis=""):
             "exercises": computed_data["exercises"],
             "videos": computed_data["videos"],
             "users": dict( zip( [u.id for u in users],
-                                ["%s, %s" % (u.first_name, u.last_name) for u in users]
+                                ["%s, %s" % (u.last_name, u.first_name) for u in users]
                          )),
             "groups":  dict( zip( [g.id for g in groups],
                                  dict(zip(["id", "name"], [(g.id, g.name) for g in groups])),

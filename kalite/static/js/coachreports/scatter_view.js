@@ -25,19 +25,23 @@ function tablifyThis(tuples, urlpath, descriptor) {
     return table;
 }
 
-function obj2num(row, stat) {
-    var xdata = 0;
+function obj2num(row, stat, json) {
+    var type = stat2type(stat)
+    var xdata = (type=="number") ? 0 : new Date();
     
     if (typeof row == 'number') {
         xdata = 0+row;
     } else {
-        xdata = 0;
-        
         for (var d in row) {
             switch (stat) {
-                case "ex:streak_progress":
+                case "ex:streak_progress": // compute an average
                 case "ex:attempts":
-                    xdata += row[d]/129;
+                    xdata += row[d];///json['exercises'].length; 
+                    break;
+                case "ex:completion_timestamp":
+                    if (row[d] != null && xdata > (new Date(row[d]))) {
+                        xdata = new Date(row[d]);
+                    }
                     break;
                 default:
                     xdata += row[d];
@@ -57,8 +61,8 @@ function json2dataTable(json, xaxis, yaxis) {
     dataTable.addColumn({'type': 'string', 'role': 'tooltip', 'p': {'html': true}});
     // 
     for (var user in json['data']) {
-        var xdata = obj2num(json['data'][user][xaxis], xaxis);
-        var ydata = obj2num(json['data'][user][yaxis], yaxis);
+        var xdata = obj2num(json['data'][user][xaxis], xaxis, json);
+        var ydata = obj2num(json['data'][user][yaxis], yaxis, json);
         dataTable.addRows([[xdata, ydata, user2tooltip(json, user, xaxis, yaxis)]]);
     }
     return dataTable;
@@ -76,7 +80,7 @@ function user2tooltip(json, user, xaxis, yaxis) {
         }
         // Some data don't have details, they're derived.
         var row = json['data'][user][axes[ai]];
-        if (typeof row == 'number')
+        if (!row || typeof row == 'number')
             continue;
 
         // Get the prefix and stat name.

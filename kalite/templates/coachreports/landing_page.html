@@ -69,7 +69,7 @@ ul.other li {
             </div>
             <div class="separate">
                 <div class="vertical-shadow suggested-action">
-                    <a class="changeable-link" href="{% url timeline_view %}?{% repeatblock topic_paths %}">
+                    <a class="changeable-link" href="{% url timeline_view xaxis='ex:completed_timestamp' yaxis='pct_mastery' %}?{% repeatblock topic_paths %}">
                         <h2 class="suggested-action-title">{% trans "Explore student mastery over time" %}</h2>
                         <div class="suggested-action-image-link" style="background-image: url({% static "images/coach-report-table.png" %});"></div>
                     </a>
@@ -93,12 +93,12 @@ ul.other li {
             </div>
             <div class="separate">
                 <ul class="other">Also try:
-                    <li><a class="changeable-link" href="{% url timeline_view2 xaxis='6_months' yaxis='pct_mastery' %}?{% repeatblock topic_paths %}">Mastery over the past 6 months</a></li>
+                    <li><a class="changeable-link" href="{% url timeline_view xaxis='6_months' yaxis='pct_mastery' %}?{% repeatblock topic_paths %}">Mastery over the past 6 months</a></li>
                 </ul>
             </div>
             <div class="separate">
                 <ul class="other">Also try:
-                    <li><a class="changeable-link" href="{% url scatter_view xaxis='pct_mastery' yaxis='effort' %}?{% repeatblock topic_paths %}">Mastery vs. Effort</a></li>
+                    <li><a class="changeable-link" href="{% url scatter_view xaxis='ex:attempts' yaxis='ex:points' %}?{% repeatblock topic_paths %}">Practice effectiveness (attempts vs. points)</a></li>
                 </ul>
             </div>
         </div>

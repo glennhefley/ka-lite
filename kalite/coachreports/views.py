@@ -118,6 +118,10 @@ def landing_page(request, facility):
     return scatter_view_context(request, facility=facility)
 
 
+@render_to("coachreports/test.html")
+def test(request):
+    return {}
+
 @facility_required
 @render_to("coachreports/old2.html")
 def old_coach_report(request, facility, report_type="exercise"):
