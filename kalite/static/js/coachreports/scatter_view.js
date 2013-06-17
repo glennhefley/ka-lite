@@ -6,15 +6,24 @@ function drawChart(chart_div, dataTable, options) {
     chart.draw(dataTable, options);
 }
 
-function obj2num(row) {
+function obj2num(row, stat) {
     var xdata = 0;
     
     if (typeof row == 'number') {
         xdata = 0+row;
     } else {
         xdata = 0;
+        
         for (var d in row) {
-            xdata += row[d];
+            switch (stat) {
+                case "ex:streak_progress":
+                case "ex:attempts":
+                    xdata += row[d]/129;
+                    break;
+                default:
+                    xdata += row[d];
+                    break;
+            }
         }
     }
     return xdata;
@@ -24,14 +33,14 @@ function json2dataTable(json, xaxis, yaxis) {
     var dataTable = new google.visualization.DataTable();
     
     // 2 data rows and a tooltip.  
-    dataTable.addColumn('number', xaxis);
-    dataTable.addColumn('number', yaxis);
+    dataTable.addColumn(stat2type(xaxis), xaxis);
+    dataTable.addColumn(stat2type(yaxis), yaxis);
     dataTable.addColumn({'type': 'string', 'role': 'tooltip', 'p': {'html': true}});
 
     // 
     for (var user in json['data']) {
-        var xdata = obj2num(json['data'][user][xaxis]);
-        var ydata = obj2num(json['data'][user][yaxis]);
+        var xdata = obj2num(json['data'][user][xaxis], xaxis);
+        var ydata = obj2num(json['data'][user][yaxis], yaxis);
         dataTable.addRows([[xdata, ydata, user2tooltip(json, user, xaxis, yaxis)]]);
     }
     return dataTable;
@@ -72,9 +81,9 @@ function user2tooltip(json, user, xaxis, yaxis) {
 
 function drawJsonChart(chart_div, json, xaxis, yaxis) {
     var options = {
-      title: xaxis + ' vs. ' + yaxis + ' comparison',
-      hAxis: {title: xaxis},
-      vAxis: {title: yaxis},
+      title: stat2name(xaxis) + ' vs. ' + stat2name(yaxis) + ' comparison',
+      hAxis: {title: stat2name(xaxis) },
+      vAxis: {title: stat2name(yaxis) },
     };
 
     drawChart(chart_div, json2dataTable(json, xaxis, yaxis), options);

@@ -16,7 +16,7 @@ from securesync.views import facility_required
 from shared.views import group_report_context
 from coachreports.forms import DataForm
 from main import topicdata
-from coachreports.api_views import StatusException, get_data_form
+from coachreports.api_views import StatusException, get_data_form, stats_dict
 
 
 """
@@ -67,6 +67,7 @@ def scatter_view_context(request, facility, topic_path="/topics/math/arithmetic/
     return {
         "form": form.data,
         "data": data,
+        "stats": stats_dict,
     }
     
 
