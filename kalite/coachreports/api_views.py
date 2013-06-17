@@ -1,4 +1,4 @@
-import datetime, re, json, simplejson, sys, logging
+import datetime, re, json, sys, logging
 from annoying.decorators import render_to
 from annoying.functions import get_object_or_None
 from functools import partial
@@ -8,7 +8,7 @@ from django.shortcuts import render_to_response, get_object_or_404, redirect, ge
 from django.template import RequestContext
 from django.template.loader import render_to_string
 from django.views.decorators.csrf import csrf_exempt, csrf_protect
-
+from django.utils import simplejson
 
 from main.models import VideoLog, ExerciseLog, VideoFile
 from securesync.models import Facility, FacilityUser,FacilityGroup, DeviceZone, Device
