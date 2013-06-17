@@ -21,7 +21,7 @@ You must:
 
 {% load my_filters %}
 {% load staticfiles %}
-
+{% load i18n %}
 
 {% block headjs %}
 <!-- Necessary for Google -->
@@ -54,7 +54,7 @@ function stat2name(stat) {
     return null;
 }
 
-function plotJsonData(chart_div, base_url, topic_paths, xaxis, yaxis) {
+function plotJsonData(chart_div, base_url, topic_paths, group_id, xaxis, yaxis) {
     /* Called whenever json data blob returns (via AJAX)
        NOTE: you have to implement drawJsonChart(chart_div, json, xaxis, yaxis); */
     
@@ -63,7 +63,7 @@ function plotJsonData(chart_div, base_url, topic_paths, xaxis, yaxis) {
     }
     
     // Get the data
-    var url = base_url + "?facility_id={{ form.facility_id }}&group_id={{ form.group_id }}&user_id={{ form.user_id }}";
+    var url = base_url + "?facility_id={{ form.facility_id }}&group_id=" + group_id + "&user_id={{ form.user_id }}";
     url += ("&xaxis=" + xaxis + "&yaxis=" + yaxis);
     
     for (var i in topic_paths) {
@@ -115,8 +115,25 @@ function stat2type(stat) {
 
 
 {% block content %}
+<div id="content" class="clearfix">
+<div class="facility"><h2>{% blocktrans %}Scatter Plots for {{ facility }}{% endblocktrans %} (<a href="?facility=select">{% trans "Change Facility" %}</a>)</h2></div>
     
-<h2 class="main-headline">{% block headline %}{% endblock headline %}</h2>
+<!-- <h2 class="main-headline">{% block headline %}{% endblock headline %}</h2> -->
+
+    {% if groups %}
+        <div class="selection">
+            <div class="subtitle">{% trans "Select Group" %}</div><select id="group">
+            <option value="" {% if not request.GET.group %}selected{% endif %}>----</option>
+                {% for group in groups %}
+                    <option value="{{ group.id }}" {% if request.GET.group == group.id %}selected{% endif %}>{{ group }}</option>
+                {% endfor %}
+            </select>
+        </div>
+    {% else %}
+        <div class="selection">
+            <div class="subtitle">{% trans "No Groups at this Facility" %}</div>
+        </div>
+    {% endif %}
 
 {% block navbar %}{{ block.super }}{% endblock navbar %}
 <div id="choose">
@@ -133,7 +150,7 @@ function stat2type(stat) {
 {% endblock axis_dropdown %}
     </form>
 </div>
-
+</div>
 <div id="content_tree"><br/><h2>Loading topic tree... Please wait!</h2></div>
 <button id="content_tree_toggle"><span class="open">Select topics</span><span class="close">Use selected topics</span></button>
 
@@ -152,7 +169,8 @@ function stat2type(stat) {
         plotJsonData(
             "#chart_div",
             "{% url api_data %}",
-            get_topic_prefixes_from_tree(), 
+            get_topic_prefixes_from_tree(),
+            $("#group option:selected").val(), 
             $("#xaxis option:selected").val(),
             $("#yaxis option:selected").val()
         );
@@ -164,6 +182,7 @@ function stat2type(stat) {
             "#chart_div",
             "{% url api_data %}",
             topics,
+            $("#group option:selected").val(),
             $("#xaxis option:selected").val(),
             $("#yaxis option:selected").val()
         );
@@ -173,6 +192,17 @@ function stat2type(stat) {
     window.preselected_topics = {{ form.topic_path|jsonify }};
 
     $(function() {        
+
+        $("#group").change(function(){
+           plotJsonData(
+               "#chart_div",
+               "{% url api_data %}",
+               get_topic_prefixes_from_tree(),
+               $("#group option:selected").val(), 
+               $("#xaxis option:selected").val(),
+               $("#yaxis option:selected").val()
+           );
+        });
 
         $("#xaxis").val("{{ form.xaxis }}");
         $("#yaxis").val("{{ form.yaxis }}");

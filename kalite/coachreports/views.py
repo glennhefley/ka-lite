@@ -57,7 +57,7 @@ def scatter_view_context(request, facility, topic_path="/topics/math/arithmetic/
         else:
             return HttpResponseServerError(se.message)
     
-    
+    groups = FacilityGroup.objects.filter(facility=facility)
     # The API tries to be lean and mean with it's response objects and text,
     #   and so mostly sends unique identifiers of objects, rather than
     #   full data / names.
@@ -68,6 +68,8 @@ def scatter_view_context(request, facility, topic_path="/topics/math/arithmetic/
         "form": form.data,
         "data": data,
         "stats": stats_dict,
+        "groups": groups,
+        "facility": facility,
     }
     
 
