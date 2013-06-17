@@ -68,14 +68,16 @@ function json2dataTable(json, xaxis, yaxis) {
     return dataTable;
   }
 
-function user2tooltip(json, user, xaxis, yaxis) {
+function user2tooltip2(json, user, xaxis, yaxis) {
     var html = "<div class='tooltip'>";
     html += "<div class='cleardiv'>" + json["users"][user] + "</div>";
-    html += "<a href='" + setGetParam(generate_current_link(), "user_id", user) + "'>more details</a>";
+    html += "<a target='_new' href='" + setGetParam(generate_current_link(), "user_id", user).replace("scatter", "student") + "'>more details</a>";
     html += "</div>";
+    
+    return html;
 }
 
-function user2tooltip2(json, user, xaxis, yaxis) {
+function user2tooltip(json, user, xaxis, yaxis) {
     var axes = [xaxis];
     var exercises = json['exercises'];
     var videos = json['videos'];
