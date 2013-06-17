@@ -44,6 +44,15 @@ if (window['google'] != undefined && window['google']['loader'] != undefined) {
 <script src="{% static "js/jquery.dynatree.min.js" %}"></script>
 
 <script type="text/javascript">
+function stat2name(stat) {
+    var children = $("#xaxis option");
+    for (opt in children) {
+        if (children[opt].value == stat) {        
+            return children[opt].text;
+        }
+    }
+    return null;
+}
 
 function plotJsonData(chart_div, base_url, topic_paths, xaxis, yaxis) {
     /* Called whenever json data blob returns (via AJAX)
@@ -62,14 +71,23 @@ function plotJsonData(chart_div, base_url, topic_paths, xaxis, yaxis) {
     }
 
     $.getJSON(url, function(json) {        
-        $("#loading").text("Drawing '" + xaxis + "' vs '" + yaxis + "'..."); 
+        $("#loading").text("Drawing '" + stat2name(xaxis) + "' vs '" + stat2name(yaxis) + "'..."); 
         drawJsonChart(chart_div, json, xaxis, yaxis);
         $("#loading").text(""); 
     }).fail(function(data) {
         $("#loading").text("Failure (" + data.status + "): " + data.responseText); 
     });
-    $("#loading").text("Loading '" + xaxis + "' vs '" + yaxis + "'");
+    $("#loading").text("Loading '" + stat2name(xaxis) + "' vs '" + stat2name(yaxis) + "'");
     $("#chart_div").html("");
+}
+
+function stat2type(stat) {
+    switch (stat) {
+        {% for stat in stats %}
+        case "{{ stat.key }}": return "{{ stat.type }}";
+        {% endfor %}
+    }
+    return null;    
 }
 </script>
 {% endblock headjs %}
@@ -101,18 +119,15 @@ function plotJsonData(chart_div, base_url, topic_paths, xaxis, yaxis) {
 <h2 class="main-headline">{% block headline %}{% endblock headline %}</h2>
 
 {% block navbar %}{{ block.super }}{% endblock navbar %}
-
 <div id="choose">
     <form id="select_data" name="select_data">
 {% block axis_dropdown %}
 [You must fill me in!!]
+    {% comment "Stick this in here, as it will be silenced (but available as a block) %}{% endcomment %}
     {% block data_options %}
-            <option value="">----</option>
-        {% mkrange 0 5 as option_range %}
-        {% for oi in option_range %}
-            {% cycle "pct_mastery" "effort" "ex:attempts"    "ex:streak_progress"      "ex:points"       as option_value silent %}
-            {% cycle "% Mastery"   "Effort" "Total Attempts" "Average Streak" "Exercise Points" as option_text  silent %}
-            <option value="{{ option_value}}"{% if option_value = form|get_item:axis_value %} selected{% endif %}>{{ option_text }}</option>
+        <option value="">----</option>
+        {% for stat in stats %}
+        <option value="{{ stat.key }}"{% if stat.key = form|get_item:axis_value %} selected{% endif %}>{{ stat.name }}</option>
         {% endfor %}
     {% endblock data_options %}
 {% endblock axis_dropdown %}

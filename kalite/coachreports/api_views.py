@@ -1,4 +1,4 @@
-import re, json, simplejson, sys, logging
+import datetime, re, json, simplejson, sys, logging
 from annoying.decorators import render_to
 from annoying.functions import get_object_or_None
 from functools import partial
@@ -20,17 +20,32 @@ from coachreports.forms import DataForm
 from main import topicdata
 from config.models import Settings
 
+
+# Global variable of all the known stats, their internal and external names, 
+#    and their "datatype" (which is a value that Google Visualizations uses)
+stats_dict = [
+    { "key": "pct_mastery",        "name": "Mastery",             "type": "number" },
+    { "key": "effort",             "name": "Effort",             "type": "number" },
+    { "key": "ex:attempts",        "name": "Average attempts",   "type": "number" },
+    { "key": "ex:streak_progress", "name": "Average streak",     "type": "number" },
+    { "key": "ex:points",          "name": "Exercise points",    "type": "number" },
+    { "key": "ex:completion_timestamp", "name": "Time completed","type": "datetime" },
+]
+
+
 class JsonResponse(HttpResponse):
     def __init__(self, content, *args, **kwargs):
         if not isinstance(content, str) and not isinstance(content, unicode):
             content = simplejson.dumps(content, ensure_ascii=False)
         super(JsonResponse, self).__init__(content, content_type='application/json', *args, **kwargs)
 
+
 class StatusException(Exception):
     def __init__(self, message, status_code):
         super(StatusException, self).__init__(message)
         self.args = (status_code,)
         self.status_code = status_code
+
 
 def get_data_form(request, *args, **kwargs):
     """Request objects get priority over keyword args"""
@@ -86,6 +101,7 @@ def get_data_form(request, *args, **kwargs):
                 HttpResponseForbidden("You cannot choose a user outside of yourself.")
     
     return form    
+
 
 def compute_data(types, who, where):
     """
@@ -175,20 +191,6 @@ def compute_data(types, who, where):
     }
 
 
-"""
-def get_data_form(request):
-    # fake data
-    form = DataForm(data = { # the following defaults are for debug purposes only
-        'facility_id': request.REQUEST.get('facility_id'), #Facility.objects.filter(name__contains="Wilson Elementary")[0].id),
-        'group_id':    request.REQUEST.get('group_id'),#FacilityGroup.objects.all()[0].id),
-        'user_id':     request.REQUEST.get('user_id'),
-        'topic_path':  request.REQUEST.get('topic_path'),#,  "/topics/math/arithmetic/multiplication-division/"),
-        'xaxis':       request.REQUEST.get('xaxis'),#,       "pct_mastery"),
-        'yaxis':       request.REQUEST.get('yaxis'),#,       "effort"  ),
-    })
-
-    return form
-"""    
     
 @csrf_exempt
 def api_data(request, xaxis="", yaxis=""):
@@ -236,8 +238,9 @@ def api_data(request, xaxis="", yaxis=""):
         }
     }
     
-    # Now we have data, stream it back
-    return HttpResponse(content=json.dumps(json_data), content_type="application/json")
+    # Now we have data, stream it back with a handler for date-times
+    dthandler = lambda obj: obj.isoformat() if isinstance(obj, datetime.datetime) else None
+    return HttpResponse(content=json.dumps(json_data, default=dthandler), content_type="application/json")
     
     
     
