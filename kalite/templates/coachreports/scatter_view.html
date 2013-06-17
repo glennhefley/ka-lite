@@ -4,6 +4,9 @@
 {% load my_filters %}
 {% load staticfiles %}
 
+{% block title %}Scatter plot {{ block.super }}{% endblock title %}
+{% block report_title %}Scatter plot {% endblock report_title %}
+
 {% block headjs %} {{ block.super }}
 <script type="text/javascript" src="/static/js/coachreports/scatter_view.js"></script>
 {% endblock headjs %}
@@ -13,7 +16,6 @@
 <link rel='stylesheet' type='text/css' href='{% static "css/coachreports/scatter_view.css" %}'>
 {% endblock headcss %}
 
-{% block report_title %}Scatter plot {% endblock report_title %}
 {% block axis_dropdown %}
     X-Axis:
     <select id="xaxis" name="xaxis">

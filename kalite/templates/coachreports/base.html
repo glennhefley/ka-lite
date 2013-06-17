@@ -5,7 +5,7 @@
 {% load my_filters %}
 
 {% block coachreports_active %}active{% endblock coachreports_active %}
-{% block title %}Coach Reports{% endblock title %}
+{% block title %}Coach Reports {{ block.super }}{% endblock title %}
 {% block headcss %}{{ block.super }}
 <link rel='stylesheet' type='text/css' href='{% static "css/coachreports/coach_reports.css" %}'>
 <style>
@@ -40,13 +40,36 @@ function setGetParam(href, name, val) {
     var parts = href.replace(/[?&]+([^=&]+)=([^&]*)/gi, function(m, key, value) {
         vars[key] = value;
     });
-    if (val != "" && val != "----") {
-        vars[name] = val;
-    } else {
+
+    if (val == "" || val == "----") {
         delete vars[name];
+    } else {
+        vars[name] = val;
     }
-    var url = base + "?" + $.param(vars);
+
+    var url = base + "?";
+    for (key in vars) {
+        url += "&" + key + "=" + vars[key];//         + $.param(vars);
+    }
     return url
+}
+
+function generate_current_link() {
+    var url = window.location.href + (window.location.search ? window.location.search : "?");
+
+    // Add topic paths
+    var topic_paths = get_topic_paths_from_tree();
+    for (pi in topic_paths) {
+        url += "&topic_path=" + topic_paths[pi];
+    }
+    
+    // Add axis information
+    url = setGetParam(url, "xaxis", $("#xaxis option:selected").val());
+    url = setGetParam(url, "yaxis", $("#yaxis option:selected").val());
+    url = setGetParam(url, "facility_id", $("#facility option:selected").val());
+    url = setGetParam(url, "group_id", $("#group option:selected").val());
+    
+    return url;
 }
 
 function changeData(type) {
@@ -120,7 +143,7 @@ function make_editable(type) {
         <div class="clearfix">
             {% block navbar_makelink %}
             <div  style="float:right;margin-right:25px;">
-                <a href="javascript:show_link()">(link)</a>
+                <a href="javascript:alert(generate_current_link())">(link)</a>
                 <input name="url" id="url" type="text" style="display:none"></input>
             </div>
             {% endblock navbar_makelink %}

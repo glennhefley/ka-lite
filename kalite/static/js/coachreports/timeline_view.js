@@ -47,7 +47,7 @@ function json2dataTable_timeline(json, xaxis, yaxis) {
 
             timepoint_array[0] = good_xdata[ri];// console.log(data_array[0]);
             timepoint_array[1+ui] = good_ydata[ri];
-            timepoint_array[1+nusers] = user2tooltip(json, uid, xaxis, yaxis);//['users'][uid];
+            timepoint_array[1+nusers] = user2tooltip_timeline(json, uid, xaxis, yaxis);//['users'][uid];
             
             data_array.push(timepoint_array);
         }
@@ -56,19 +56,24 @@ function json2dataTable_timeline(json, xaxis, yaxis) {
     return dataTable;
   }
 
-function user2tooltip(json, uid, xaxis, yaxis) {
+function user2tooltip_timeline(json, uid, xaxis, yaxis) {
 //    var href = get_current_href();
     var html = "<div class='tooltip'>" + json["users"][uid] + "</div>";
 //    html += window.location.href.replace("<a href='/coachreports/student/?user_id=" + uid + "&
     return html;
 }
 
-function drawJsonChart(chart_div, json, xaxis, yaxis) {
+function drawJsonChart_timeline(chart_div, json, xaxis, yaxis) {
     var options = {
       title: stat2name(xaxis) + ' vs. ' + stat2name(yaxis) + ' comparison',
       hAxis: {title: stat2name(xaxis) },
       vAxis: {title: stat2name(yaxis) },
     };
 
-    drawChart_timeline(chart_div, json2dataTable_timeline(json, xaxis, yaxis), options);
+    return drawChart_timeline(chart_div, json2dataTable_timeline(json, xaxis, yaxis), options);
 }
+
+function drawJsonChart(chart_div, json, xaxis, yaxis) {
+    return drawJsonChart_timeline(chart_div, json, xaxis, yaxis);
+}
+

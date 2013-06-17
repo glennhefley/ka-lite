@@ -158,25 +158,51 @@ def old_coach_report(request, facility, report_type="exercise"):
         exercises = get_topic_exercises(topic_id)
         context["exercises"] = exercises
         
+        # More code, but much faster
+        exercise_names = [ex["name"] for ex in context["exercises"]]
         # Get students
-        context["students"] = [{
-            "first_name": user.first_name,
-            "last_name": user.last_name,
-            "username": user.username,
-            "exercise_logs": [get_object_or_None(ExerciseLog, user=user, exercise_id=ex["name"]) for ex in exercises],
-        } for user in users]
-    
+        context["students"] = []
+        for user in users:
+            exlogs = ExerciseLog.objects.filter(user=user, exercise_id__in=exercise_names)
+            log_ids = [log.exercise_id for log in exlogs]
+            log_table = []
+            for en in exercise_names:
+                if en in log_ids:
+                    log_table.append(exlogs[log_ids.index(en)])
+                else:
+                    log_table.append(None)
+            
+            context["students"].append({
+                "first_name": user.first_name,
+                "last_name": user.last_name,
+                "username": user.username,
+                "exercise_logs": log_table,
+            })
+
     elif report_type=="video":
         # Fill in videos
         context["videos"] = get_topic_videos(topic_id)
 
-        context["students"] = [{
-            "first_name": user.first_name,
-            "last_name": user.last_name,
-            "username": user.username,
-            "video_logs": [get_object_or_None(VideoLog, user=user, youtube_id=v["youtube_id"]) for v in context["videos"]],
-        } for user in users]
-        
+        # More code, but much faster
+        video_ids = [vid["youtube_id"] for vid in context["videos"]]
+        # Get students
+        context["students"] = []
+        for user in users:
+            vidlogs = VideoLog.objects.filter(user=user, youtube_id__in=video_ids)
+            log_ids = [log.youtube_id for log in vidlogs]
+            log_table = []
+            for yid in video_ids:
+                if yid in log_ids:
+                    log_table.append(vidlogs[log_ids.index(yid)])
+                else:
+                    log_table.append(None)
+            
+            context["students"].append({
+                "first_name": user.first_name,
+                "last_name": user.last_name,
+                "username": user.username,
+                "video_logs": log_table,
+            })        
     else:
         return HttpResponseNotFound(render_to_string("404_distributed.html", {}, context_instance=RequestContext(request)))
 
