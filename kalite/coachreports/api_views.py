@@ -32,9 +32,10 @@ def get_data_form(request, *args, **kwargs):
     
     # Pull the form parameters out of the request or 
     data = dict()
-    for field in ["facility_id", "group_id", "user_id", "topic_path", "xaxis", "yaxis"]:
+    for field in ["facility_id", "group_id", "user_id", "xaxis", "yaxis"]:
         # Default to empty string, as it makes template handling cleaner later.
         data[field] = request.REQUEST.get(field, kwargs.get(field, ""))
+    data["topic_path"] = request.REQUEST.getlist("topic_path")
     form = DataForm(data = data)
     
     # get the selected facility from the arg passed by @facility_required, if needed
@@ -108,7 +109,7 @@ def compute_data(types, who, where):
     # Topics: topics.
     # Exercises: names (ids for ExerciseLog objects)
     # Videos: youtube_id (ids for VideoLog objects)
-    search_fun      = partial(lambda t,p: t["path"].startswith(p), p=where)
+    search_fun      = partial(lambda t,p: t["path"].startswith(p), p=tuple(where))
     query_topics    = partial(lambda t,sf: t if t is not None else [t           for t   in filter(sf, topicdata.NODE_CACHE['Topic'].values())],sf=search_fun)
     query_exercises = partial(lambda e,sf: e if e is not None else [ex["name"]  for ex  in filter(sf, topicdata.NODE_CACHE['Exercise'].values())],sf=search_fun)
     query_videos    = partial(lambda v,sf: v if v is not None else [vid["youtube_id"] for vid in filter(sf, topicdata.NODE_CACHE['Video'].values())],sf=search_fun)

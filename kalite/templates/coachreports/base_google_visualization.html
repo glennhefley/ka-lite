@@ -58,7 +58,11 @@ function plotJsonData(chart_div, base_url, topic_path, xaxis, yaxis) {
     
     // Get the data
     var url = base_url + "?facility_id={{ form.facility_id }}&group_id={{ form.group_id }}&user_id={{ form.user_id }}";
-    url += ("&topic_path=" + topic_path + "&xaxis=" + xaxis + "&yaxis=" + yaxis);
+    url += ("&xaxis=" + xaxis + "&yaxis=" + yaxis);
+    
+    for (var i in topic_path){
+        url += "&topic_path=" + topic_path[i];
+    }
 
     $.getJSON(url, function(json) {
         window.json = json;
@@ -130,7 +134,7 @@ function plotJsonData(chart_div, base_url, topic_path, xaxis, yaxis) {
         plotJsonData(
             "#chart_div",
             "{% url api_data %}",
-            "{{ form.topic_path }}", 
+            {{ form.topic_path|jsonify }}, 
             $("#xaxis option:selected").val(),
             $("#yaxis option:selected").val()
         );
@@ -140,7 +144,7 @@ function plotJsonData(chart_div, base_url, topic_path, xaxis, yaxis) {
     plotJsonData(
         "#chart_div",
         "{% url api_data %}",
-        "{{ form.topic_path }}", 
+        {{ form.topic_path|jsonify }}, 
         "{{ form.xaxis }}", 
         "{{ form.yaxis }}"
     );
