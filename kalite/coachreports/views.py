@@ -92,7 +92,8 @@ def timeline_view(request, facility, xaxis="", yaxis=""):
 @facility_required
 @render_to("coachreports/student_view.html")
 def student_view(request, facility, xaxis="pct_mastery", yaxis="ex:attempts"):
-    user = request.session["facility_user"]
+    user = get_object_or_None(FacilityUser, id=request.REQUEST.get("user_id"))
+    user = user or request.session.get("facility_user",None)
     
     topics = get_all_topics() # piss poor topics 
     topic_ids = [t['id'] for t in topics]
@@ -131,41 +132,22 @@ def student_view(request, facility, xaxis="pct_mastery", yaxis="ex:attempts"):
         "form": context["form"],
         "groups": context["groups"],
         "facilities": context["facilities"],
-        "user": user,
+        "student": user,
         "topics": topics,
         "topic_ids": topic_ids,
         "exercise_logs": exercise_logs,
         "video_logs": video_logs,
         "exercise_sparklines": exercise_sparklines,
         "stats": stats,
-        "stat_defs": [
+        "stat_defs": [ # this order determines the order of display
+            {"key": "pct_mastery",      "title": "% Mastery",        "type": "pct"},
             {"key": "pct_started",      "title": "% Started",        "type": "pct"},
             {"key": "average_points",   "title": "Average Points",   "type": "float"},
             {"key": "average_attempts", "title": "Average Attempts", "type": "float"},
-            {"key": "pct_mastery",      "title": "% Mastery",        "type": "pct"},
             {"key": "total_struggling", "title": "Total Struggling", "type": "int"},
-            {"key": "last_completed", "title": "Last Completed", "type": "date"},
+            {"key": "last_completed",   "title": "Last Completed",   "type": "date"},
         ]
     }
-
-@require_login
-@facility_required
-@render_to("coachreports/table_view.html")
-def table_view(request, facility):
-
-    form = get_data_form(request, facility=facility)
-    try:
-        data = get_api_data(request, form)
-    except StatusException as se:
-        if se.status_code == 404:
-            return HttpResponseNotFound(se.message)
-        else:
-            return HttpResponseServerError(se.message)
-    
-    return {
-        "form": form.data,
-        "data": data,
-    }        
 
 
 @require_login
@@ -203,13 +185,14 @@ def old_coach_report(request, facility, report_type="exercise"):
     
     # get querystring info
     topic_id = request.GET.get("topic", "")
-    group_id = request.GET.get("group", "")
+    group_id = request.GET.get("group_id", "")
     
     # No valid data; just show generic
     if not group_id or not topic_id or not re.match("^[\w\-]+$", topic_id):
         return context
  
-    users = get_object_or_404(FacilityGroup, pk=group_id).facilityuser_set.order_by("last_name", "first_name")
+    group = get_object_or_404(FacilityGroup, pk=group_id)
+    users = FacilityUser.objects.filter(group=group, is_teacher=False).order_by("last_name", "first_name")
 
     # We have enough data to render over a group of students
     # Get type-specific information
@@ -236,6 +219,7 @@ def old_coach_report(request, facility, report_type="exercise"):
                 "first_name": user.first_name,
                 "last_name": user.last_name,
                 "username": user.username,
+                "id": user.id,
                 "exercise_logs": log_table,
             })
 

@@ -111,15 +111,15 @@ function make_editable(type) {
         </div>
 
         {% block navbar_user %}
-        {% if user %}
+        {% if student %}
         <div id="select-user" class="selection">
-            <span id="user">{{ user.first_name }} {{ user.last_name }}</span>
-        (
+            <span id="user">{{ student.first_name }} {{ student.last_name }}</span>
         </div>
         {% endif %}
         {% endblock navbar_user %}
         
         {% block navbar_facilities %}
+        {% if not student %}
         <div id="select-facilities" class="selection">
             <select id="facility">
             {% if facilities %}
@@ -136,9 +136,11 @@ function make_editable(type) {
             <span id="facility_editable"></span>
             {% endif %}
         </div>
+        {% endif %}
         {% endblock navbar_facilities %}
 
         {% block navbar_groups %}
+        {% if not student %}
         <div id="select-groups" class="selection">
             <div class="subtitle"> {% if facilities and groups %}/&nbsp;{% endif %}</div>
             <select id="group">
@@ -157,8 +159,8 @@ function make_editable(type) {
             <span id="group_editable"></span>
             {% endif %}
         </div>
+        {% endif %}
         {% endblock navbar_groups %}
-        {% if user %}){% endif %}        
 
         <div class="clearfix">
             {% block navbar_makelink %}

@@ -163,7 +163,7 @@
                             <tr>
                                 <th class="username">
                                     <span title="{{ student.first_name }} {{ student.last_name }} ({{ student.username }})">
-                                        <div class="student-name">{{ student.first_name }} {{ student.last_name }}</div>
+                                        <div class="student-name"><a href="{% url student_view %}?user_id={{ student.id }}">{{ student.first_name }} {{ student.last_name }}</a></div>
                                     </span>
                                 </th>
                             </tr>
@@ -282,7 +282,7 @@ $(function() {
     });
 
     $("#student").change(function(){
-        setGetParam("user", $("#student option:selected").val());
+        setGetParam("user_id", $("#student option:selected").val());
     });
 
     $("#topic").change(function(){
@@ -290,7 +290,7 @@ $(function() {
     });
 
     $("#group").change(function(){
-       setGetParam("group", $("#group option:selected").val()); 
+       setGetParam("group_id", $("#group option:selected").val()); 
     });
     
     // Selector to toggle visible elements is stored in each option value
