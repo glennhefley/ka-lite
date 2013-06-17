@@ -2,7 +2,7 @@
 {% comment %}
 This template is a basic skeleton around a Google Visualization plot.  It has the following parts:
 
-* Loads scripts necessary for Google Visaulizations (locally)
+* Loads scripts necessary for Google Visualizations (locally)
 * Has a div for plotting, and a div for status message (loading)
 
 You must:
@@ -39,6 +39,10 @@ if (window['google'] != undefined && window['google']['loader'] != undefined) {
 }
 </script>
 <script type="text/javascript" src="/static/js/coachreports/google.jsapi.js"></script>
+
+<script src="{% static "js/jquery-ui.custom.min.js" %}"></script>
+<script src="{% static "js/jquery.dynatree.min.js" %}"></script>
+
 <script type="text/javascript">
 
 function plotJsonData(chart_div, base_url, topic_path, xaxis, yaxis) {
@@ -77,6 +81,7 @@ function plotJsonData(chart_div, base_url, topic_path, xaxis, yaxis) {
 
 {% block headcss %} {{ block.super }}
 <link rel='stylesheet' type='text/css' href='{% static "css/coachreports/google.tooltip.css" %}'>
+<link href="{% static "css/ui.dynatree.css" %}" rel="stylesheet" type="text/css"/>
 <style>
 #loading {
     width:100%;
@@ -86,6 +91,9 @@ function plotJsonData(chart_div, base_url, topic_path, xaxis, yaxis) {
 .google-chart {
     width: 900px; 
     height: 500px;
+}
+#content_tree_toggle .open {
+    display: none;
 }
 </style>
 {% endblock headcss %}
@@ -115,6 +123,9 @@ function plotJsonData(chart_div, base_url, topic_path, xaxis, yaxis) {
     </form>
 </div>
 
+<div id="content_tree"><br/><h2>Loading topic tree... Please wait!</h2></div>
+<button id="content_tree_toggle"><span class="open">Select topics</span><span class="close">Use selected topics</span></button>
+
 <div id="google-chart">
 {% block chart_div %}
     <div id="loading"></div>
@@ -137,12 +148,71 @@ function plotJsonData(chart_div, base_url, topic_path, xaxis, yaxis) {
     });
 {% endfor %}
 
-    plotJsonData(
-        "#chart_div",
-        "{% url api_data %}",
-        "{{ form.topic_path }}", 
-        "{{ form.xaxis }}", 
-        "{{ form.yaxis }}"
-    );
+    function plotTopics(topics) {
+        plotJsonData(
+            "#chart_div",
+            "{% url api_data %}",
+            "{{ form.topic_path }}", 
+            "{{ form.xaxis }}", 
+            "{{ form.yaxis }}"
+        );        
+    }
+
+    $(function() {
+        
+        
+        
+        setTimeout(function() {
+            doRequest("/coachreports/api/get_math_topic_tree", {}).success(function(treeData) {
+                
+                $("#content_tree").dynatree({
+                    imagePath:"../images/",
+                    checkbox: true,
+                    selectMode: 3,
+                    children: treeData,
+                    debugLevel: 0,
+                    onSelect: function(select, node) {
+                        
+                    },
+                    onDblClick: function(node, event) {
+                        node.toggleSelect();
+                    },
+                    onKeydown: function(node, event) {
+                        if( event.which == 32 ) {
+                            node.toggleSelect();
+                            return false;
+                        }
+                    },
+                    onPostInit: function() {
+
+                    }
+                });
+                        
+            });
+        }, 200);
+
+        // open and close the topic tree, and call `display_selected_topics` when closed
+        var showing_tree = false;
+        $("#content_tree_toggle").click(function() {
+            showing_tree = !showing_tree;
+            $("#content_tree_toggle span").toggle();
+            $("#content_tree").slideToggle();
+            if (!showing_tree && _.isFunction(display_selected_topics)) {
+                display_selected_topics(get_topic_prefixes_from_tree());
+            }
+        });
+
+        function get_topic_prefixes_from_tree() {
+            var paths = [];
+            $.each($("#content_tree").dynatree("getSelectedNodes"), function(ind, node) {
+                if (!node.parent.parent || !node.parent.bSelected) {
+                    paths.push(node.data.key);
+                }
+            });
+            return paths;
+        }
+
+    });
+
 </script>
 {% endblock content %}
