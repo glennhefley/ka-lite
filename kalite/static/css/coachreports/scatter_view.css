@@ -10,42 +10,60 @@
 }
 
 table.detail {
+    width: 100%;
     border: 1px solid green;
 }
 
-table.detail th {
-    background-color: #aaf;
-}
-table.detail td {
-    background-color: #ccf;
+table.detail td.data {
+    width: 25%;
 }
 
-.tooltip div {
+.tooltip > div {
     max-height: 100px;
     overflow: scroll;
     overflow-x: hidden;
+    margin-top: 3px;
 }
 
-.struggling table th {
-    background-color: #faa;
+.tooltip .username {
+    overflow: hidden;
+    float: left;
+    vertical-align:middle;
+    padding-right: 5%;
 }
 
-.struggling table td {
+.struggling {
     background-color: #fcc;
 }
 
-.notattempted table th {
-    background-color: #999;
-}
-
-.notattempted table td {
+.notattempted {
     background-color: #ccc;
 }
 
-.attempted table th {
-    background-color: #afa;
+.attempted {
+    background-color: #cfc;
 }
 
-.attempted table td {
-    background-color: #cfc;
+#legend {
+    vertical-align:middle;
+    margin:12px 25px 2px 10px;
+    overflow: hidden;
+}
+
+.legend {
+    float:left;
+    height:20px;
+    text-align:center;
+    vertical-align:middle;
+    overflow:hidden;
+    border-width: 1px;
+    padding:2px;
+    margin-right: 2px;
+    
+}
+.legend div {
+    float:left;
+    width:35px;
+    height:21px;
+    overflow: hidden;
 }
