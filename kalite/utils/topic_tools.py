@@ -146,10 +146,28 @@ db_name: name of database to connect to (Old method)
 
     
 def get_topic_by_path(path):
-    import pdb; pdb.set_trace()        
+    # Make sure the root fits
+    root_node = topicdata.TOPICS
+    if not path.startswith(root_node["path"]):
+        return None
+        
+    # split into parts (remove trailing slash first)
+    parts = path[len(root_node["path"]):-1].split("/")
+    cur_node = root_node
+    for part in parts:
+        cur_node = filter(partial(lambda n,p: n["id"]==p, p=part), cur_node["children"])
+        if cur_node:
+            cur_node = cur_node[0]
+        else:
+            break;
+            
+    assert not cur_node or cur_node["path"] == path, "Either didn't find it, or found the right thing."
+
+    return cur_node 
     
-def get_all_leaves(node, leaf_type=None):
-    import pdb; pdb.set_trace()
+
+#def get_all_leaves(node, leaf_type=None):
+#    import pdb; pdb.set_trace()
     
 def get_topic_exercises(topic_id=None, path=None, sort=True, data_path=settings.DATA_PATH):
     assert (topic_id or path) and not (topic_id and path), "Specify topic_id or path, not both."

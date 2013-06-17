@@ -1,8 +1,9 @@
-import datetime, re, json, simplejson, sys, logging
+import datetime, re, json, sys, logging
 from annoying.decorators import render_to
 from annoying.functions import get_object_or_None
 from functools import partial
 
+from django.utils import simplejson
 from django.http import HttpResponse, HttpResponseRedirect, HttpResponseForbidden, HttpResponseNotFound, HttpResponseServerError
 from django.shortcuts import render_to_response, get_object_or_404, redirect, get_list_or_404
 from django.template import RequestContext
@@ -19,6 +20,7 @@ from securesync.views import facility_required
 from coachreports.forms import DataForm
 from main import topicdata
 from config.models import Settings
+from utils.topic_tools import get_topic_by_path
 
 
 # Global variable of all the known stats, their internal and external names, 
@@ -61,7 +63,6 @@ def get_data_form(request, *args, **kwargs):
     
     if not "facility_user" in request.session:
         if request.user.is_superuser:
-            import pdb; pdb.set_trace()
             facility = getattr(kwargs.get("facility"), "id", "")
         
     else:
@@ -276,5 +277,6 @@ def convert_topic_tree(node, level=0):
     return None
 
 @require_admin
-def get_math_topic_tree(request):
-    return JsonResponse(convert_topic_tree(topicdata.TOPICS["children"][0]))
+def get_topic_tree(request, topic_path="/topics/math/"):
+    return JsonResponse(convert_topic_tree(get_topic_by_path(topic_path)));
+    
