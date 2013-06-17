@@ -202,8 +202,9 @@ def add_facility_user(request, facility, is_teacher):
             form.instance.set_password(form.cleaned_data["password"])
             form.instance.is_teacher = is_teacher
             form.save()
+            messages.success(request, _("You successfully created the user."))
             if request.is_logged_in:
-                return HttpResponseRedirect(reverse("homepage"))
+                return HttpResponseRedirect(request.META.get("PATH_INFO", reverse("homepage")))
             else:
                 return HttpResponseRedirect(reverse("login") + "?facility=" + facility.pk)
     elif Facility.objects.count() == 0:
