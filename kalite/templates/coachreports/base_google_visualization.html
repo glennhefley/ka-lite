@@ -45,17 +45,10 @@ if (window['google'] != undefined && window['google']['loader'] != undefined) {
 
 <script type="text/javascript">
 
-function plotJsonData(chart_div, base_url, topic_path, xaxis, yaxis) {
+function plotJsonData(chart_div, base_url, topic_paths, xaxis, yaxis) {
     /* Called whenever json data blob returns (via AJAX)
        NOTE: you have to implement drawJsonChart(chart_div, json, xaxis, yaxis); */
     
-    //
-    if (xaxis && xaxis != $("#xaxis option:selected").val()) {
-        $("#xaxis").val(xaxis);
-    }
-    if (yaxis && yaxis != $("#yaxis option:selected").val()) {
-        $("#yaxis").val(yaxis);
-    }
     if (!xaxis || !yaxis) { // one of the ---- is selected
         return false; 
     }
@@ -64,20 +57,19 @@ function plotJsonData(chart_div, base_url, topic_path, xaxis, yaxis) {
     var url = base_url + "?facility_id={{ form.facility_id }}&group_id={{ form.group_id }}&user_id={{ form.user_id }}";
     url += ("&xaxis=" + xaxis + "&yaxis=" + yaxis);
     
-    for (var i in topic_path){
-        url += "&topic_path=" + topic_path[i];
+    for (var i in topic_paths) {
+        url += "&topic_path=" + topic_paths[i];
     }
 
-    $.getJSON(url, function(json) {
-        window.json = json;
-        
-        $("#loading").text("Drawing " + xaxis + " " + yaxis); 
+    $.getJSON(url, function(json) {        
+        $("#loading").text("Drawing '" + xaxis + "' vs '" + yaxis + "'..."); 
         drawJsonChart(chart_div, json, xaxis, yaxis);
         $("#loading").text(""); 
     }).fail(function(data) {
         $("#loading").text("Failure (" + data.status + "): " + data.responseText); 
     });
-    $("#loading").text("Loading " + xaxis + " " + yaxis); 
+    $("#loading").text("Loading '" + xaxis + "' vs '" + yaxis + "'");
+    $("#chart_div").html("");
 }
 </script>
 {% endblock headjs %}
@@ -145,7 +137,7 @@ function plotJsonData(chart_div, base_url, topic_path, xaxis, yaxis) {
         plotJsonData(
             "#chart_div",
             "{% url api_data %}",
-            {{ form.topic_path|jsonify }}, 
+            get_topic_prefixes_from_tree(), 
             $("#xaxis option:selected").val(),
             $("#yaxis option:selected").val()
         );
@@ -156,13 +148,19 @@ function plotJsonData(chart_div, base_url, topic_path, xaxis, yaxis) {
         plotJsonData(
             "#chart_div",
             "{% url api_data %}",
-            {{ form.topic_path|jsonify }},
-            "{{ form.xaxis }}", 
-            "{{ form.yaxis }}"
+            topics,
+            $("#xaxis option:selected").val(),
+            $("#yaxis option:selected").val()
         );
     }
+    
+    // TODO(jamalex): have these topics get selected in the tree and trigger plot
+    window.preselected_topics = {{ form.topic_path|jsonify }};
 
     $(function() {        
+
+        $("#xaxis").val("{{ form.xaxis }}");
+        $("#yaxis").val("{{ form.yaxis }}");
         
         setTimeout(function() {
             doRequest("/coachreports/api/get_math_topic_tree", {}).success(function(treeData) {
@@ -194,27 +192,27 @@ function plotJsonData(chart_div, base_url, topic_path, xaxis, yaxis) {
         }, 200);
 
         // open and close the topic tree, and call `display_selected_topics` when closed
-        var showing_tree = false;
+        var showing_tree = true;
         $("#content_tree_toggle").click(function() {
             showing_tree = !showing_tree;
             $("#content_tree_toggle span").toggle();
             $("#content_tree").slideToggle();
-            if (!showing_tree && _.isFunction(display_selected_topics)) {
-                display_selected_topics(get_topic_prefixes_from_tree());
+            if (!showing_tree) {
+                plotTopics(get_topic_prefixes_from_tree());
             }
         });
 
-        function get_topic_prefixes_from_tree() {
-            var paths = [];
-            $.each($("#content_tree").dynatree("getSelectedNodes"), function(ind, node) {
-                if (!node.parent.parent || !node.parent.bSelected) {
-                    paths.push(node.data.key);
-                }
-            });
-            return paths;
-        }
-
     });
+
+    function get_topic_prefixes_from_tree() {
+        var paths = [];
+        $.each($("#content_tree").dynatree("getSelectedNodes"), function(ind, node) {
+            if (!node.parent.parent || !node.parent.bSelected) {
+                paths.push(node.data.key);
+            }
+        });
+        return paths;
+    }
 
 </script>
 {% endblock content %}
