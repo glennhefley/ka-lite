@@ -1,4 +1,4 @@
-import re, json, sys, logging
+import re, json, simplejson, sys, logging
 from annoying.decorators import render_to
 from annoying.functions import get_object_or_None
 from functools import partial
@@ -13,12 +13,18 @@ from django.views.decorators.csrf import csrf_exempt, csrf_protect
 from main.models import VideoLog, ExerciseLog, VideoFile
 from securesync.models import Facility, FacilityUser,FacilityGroup, DeviceZone, Device
 from utils.decorators import require_admin
+from utils.topics import slug_key, title_key
 from securesync.views import facility_required
 #from shared.views import group_report_context
 from coachreports.forms import DataForm
 from main import topicdata
 from config.models import Settings
 
+class JsonResponse(HttpResponse):
+    def __init__(self, content, *args, **kwargs):
+        if not isinstance(content, str) and not isinstance(content, unicode):
+            content = simplejson.dumps(content, ensure_ascii=False)
+        super(JsonResponse, self).__init__(content, content_type='application/json', *args, **kwargs)
 
 class StatusException(Exception):
     def __init__(self, message, status_code):
@@ -242,3 +248,27 @@ def api_friendly_names(request):
     
     
     return None
+
+
+def convert_topic_tree(node, level=0):
+    if node["kind"] == "Topic":
+        if "Exercise" not in node["contains"]:
+            return None
+        children = []
+        for child_node in node["children"]:
+            child = convert_topic_tree(child_node, level=level+1)
+            if child:
+                children.append(child)
+        return {
+            "title": node["title"],
+            "tooltip": re.sub(r'<[^>]*?>', '', node["description"] or ""),
+            "isFolder": True,
+            "key": node["path"],
+            "children": children,
+            "expand": level < 1,
+        }
+    return None
+
+@require_admin
+def get_math_topic_tree(request):
+    return JsonResponse(convert_topic_tree(topicdata.TOPICS["children"][0]))
