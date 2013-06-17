@@ -12,8 +12,8 @@ urlpatterns = patterns('coachreports.views',
     url(r'^student/$', 'student_view', {}, 'student_view'),
     url(r'^student/(?P<xaxis>[^/]+)/(?P<yaxis>[^/]+)/$', 'student_view', {}, 'student_view'),
 
-    url(r'^old/$', 'old_coach_report', {}, 'old_coach_report'),
-    url(r'^old/(?P<report_type>\w+)/$', 'old_coach_report', {}, 'old_coach_report'),
+    url(r'^table/$', 'old_coach_report', {}, 'old_coach_report'),
+    url(r'^table/(?P<report_type>\w+)/$', 'old_coach_report', {}, 'old_coach_report'),
 
     
 #    url(r'(?P<subject_id>\w+)/(?P<topic_id>\w+)/mastery$',  'coach_reports', {}, 'coach_reports'),

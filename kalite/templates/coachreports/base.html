@@ -1,5 +1,6 @@
 {% extends 'base_distributed.html' %}
 
+{% load i18n %}
 {% load staticfiles %}
 {% load my_filters %}
 
@@ -7,24 +8,141 @@
 {% block title %}Coach Reports{% endblock title %}
 {% block headcss %}{{ block.super }}
 <link rel='stylesheet' type='text/css' href='{% static "css/coachreports/coach_reports.css" %}'>
+<style>
+select {
+    font-size: 36px;
+    margin-left: 10px;
+}
+.subtitle {
+    float:left;
+}
+#facility, #group {
+    display:none;
+}
+h2 {
+    width:100%;
+    margin: 0px;
+    margin-top: 10px;
+}
+h3 {
+    margin-left: 25px;
+    margin-bottom: 0px;
+}
+</style>
 {% endblock headcss %}
 
+{% block headjs %}{{ block.super }}
+<script>
+
+function setGetParam(href, name, val) {
+    var vars = {};
+    var base = href.replace(/([?].*)$/gi, ""); // no querystring
+    var parts = href.replace(/[?&]+([^=&]+)=([^&]*)/gi, function(m, key, value) {
+        vars[key] = value;
+    });
+    if (val != "" && val != "----") {
+        vars[name] = val;
+    } else {
+        delete vars[name];
+    }
+    var url = base + "?" + $.param(vars);
+    return url
+}
+
+function changeData(type) {
+    var opt = $("#" + type + " option:selected");
+    $("#" + type + "_editable").text(opt.text());
+    $(".changeable-link").each(function () { 
+        this.href = setGetParam(this.href, type + "_id", opt.val());
+    });
+}
+function make_editable(type) {
+    $("#" + type + "_editable").hide();
+    $("#" + type).show();
+}
+</script>
+{% endblock headjs %}
 
 {% block content %}
 {% block navbar %}
 <div id="navbar" style="padding-bottom:25px">
-    <div id="topic_link">
+<!--     <div id="topic_link">
         Topic: 
         <a href="{{ form.topic_path }}">{{ form.topic_path }}</a>
         [We could split these on '/' and link to each level of the path, and have easy navigation...
-    </div>
+    </div> -->
     <div id="users_link">
-    {% if form.user_id %}User: {{ form.user_id }}
+<!--     {% if form.user_id %}User: {{ form.user_id }}
     {% elif form.facility_id %}Facility: {{ form.facility_id }}
     {% elif form.group_id %}Group: {{ form.group_id }}
     {% else %}All data (across facilities, groups, etc)
-    {% endif %}
+    {% endif %} -->
     </div>
+
+    {% block navbar_title %}
+    <h2>
+        <div style="float:left">
+            {% block report_title %}{% trans "Coach Reports" %}{% endblock %}
+             for&nbsp;
+        </div>
+        {% block navbar_facilities %}
+        <div id="select-facilities" class="selection">
+            <select id="facility">
+            {% if facilities %}
+                {% for facility in facilities %}
+                <option value="{{ facility.id }}" {% if form.facility_id == facility.id %}selected{% endif %}>{{ facility }}</option>
+                {% endfor %}
+            {% else %}
+                <option value="" selected>[{% trans "this device" %}]</option>
+            {% endif %}
+            </select>
+            <a id="facility_editable" href="javascript:make_editable('facility')"></a>
+        </div>
+        {% endblock navbar_facilities %}
+
+        {% block navbar_groups %}
+        <div id="select-groups" class="selection">
+            <div class="subtitle"> {% if groups %}/&nbsp;{% endif %}</div>
+            <select id="group">
+            {% if groups %}
+                <option value="">[all groups]</option>
+                {% for group in groups %}
+                <option value="{{ group.id }}">{{ group }}</option>
+                {% endfor %}
+            {% else %}
+                <option value="" selected></option>
+            {% endif %}
+            </select>
+            <a id="group_editable" href="javascript:make_editable('group')"></a>
+        </div>
+        {% endblock navbar_groups %}
+        
+        <div class="clearfix"><div  style="float:right;margin-right:25px;"><a href="javascript:show_link()">(link)</a><input name="url" id="url" type="text" style="display:none"></input></div></div>
+    </h2>
+    {% endblock navbar_title %}
+
+    {% block navbar_topics %}
+    <h3 id="topic_header">
+        {% trans "Topics selected" %}:
+        <a id="topic_paths" href="javascript:toggle_tree()">{% if form.topic_path %}{{ form.topic_path|jsonify }}{% else %}None{% endif %}</a>
+    </h3>
+    {% endblock navbar_topics %}
 </div>
 {% endblock navbar %}
+
+{% block endjs %}
+<script type="text/javascript">
+    $(function() {        
+        // Make sure that each dropdown has a callback 
+        //   to replot upon selection.
+        $("#group").change(   function() { changeData("group"); });
+        $("#facility").change(function() { changeData("facility"); });
+        window.onreload = function() {alert('1');}
+
+        // Select the values in the 
+        $("#group").val("{{ form.group_id }}").change();
+        $("#facility").val("{{ form.facility_id }}").change();
+    });
+</script>
+{% endblock endjs %}
 {% endblock content %}

@@ -9,7 +9,7 @@ from django.shortcuts import render_to_response, get_object_or_404, redirect, ge
 from django.template import RequestContext
 from django.template.loader import render_to_string
 from django.views.decorators.csrf import csrf_exempt, csrf_protect
-
+from django.utils import simplejson
 
 from main.models import VideoLog, ExerciseLog, VideoFile
 from securesync.models import Facility, FacilityUser,FacilityGroup, DeviceZone, Device
@@ -61,10 +61,20 @@ def get_data_form(request, *args, **kwargs):
     data["topic_path"] = request.REQUEST.getlist("topic_path")
     form = DataForm(data = data)
     
+    # Filling in data for superusers
     if not "facility_user" in request.session:
         if request.user.is_superuser:
-            facility = getattr(kwargs.get("facility"), "id", "")
-        
+            if not (form.data["facility_id"] or form.data["group_id"] or form.data["user_id"]):
+                facility = kwargs.get("facility")
+                group = None if FacilityGroup.objects.all().count() !=1 else FacilityGroup.objects.all()[0]
+            
+                if group and not form.data["group_id"]:
+                    form.data["group_id"] = group.id
+                if facility and not form.data["facility_id"]:
+                    form.data["facility_id"] = facility.id
+                    
+
+    # Filling in data for FacilityUsers
     else:
         user = request.session["facility_user"]
         group = None if not user else user.group
@@ -103,6 +113,15 @@ def get_data_form(request, *args, **kwargs):
             elif user and form.data["user_id"] and user.id != form.data["user_id"]:
                 # We could also redirect
                 HttpResponseForbidden("You cannot choose a user outside of yourself.")
+
+    # Fill in backwards: a user implies a group
+    if form.data.get("user_id") and not form.data.get("group_id"):
+         user = get_object_or_404(FacilityUser, id=form.data["user_id"])
+         form.data["group_id"] = getattr(user.group, "id")
+
+    if form.data.get("group_id") and not form.data.get("facility_id"):
+         group = get_object_or_404(FacilityGroup, id=form.data["group_id"])
+         form.data["facility_id"] = getattr(group.facility, "id")
     
     return form    
 
@@ -161,9 +180,10 @@ def compute_data(types, who, where):
                     
             elif type == "effort":
                 if "ex:attempts" in data[data.keys()[0]] and "vid:total_seconds_watched" in data[data.keys()[0]]:
+                    # exercises and videos would be initialized already
                     for user in data.keys():
-                        avg_attempts = sum(data[user]["ex:attempts"].values())/float(len(exercises))
-                        avg_seconds_watched = sum(data[user]["vid:total_seconds_watched"].values())/float(len(videos))
+                        avg_attempts = 0 if len(exercises)==0 else sum(data[user]["ex:attempts"].values())/float(len(exercises))
+                        avg_seconds_watched = 0 if len(videos)==0 else sum(data[user]["vid:total_seconds_watched"].values())/float(len(videos))
                         data[user][type] = avg_attempts/10. + avg_seconds_watched/750.
                 else:
                     types += ["ex:attempts", "vid:total_seconds_watched", "effort"]
@@ -185,7 +205,7 @@ def compute_data(types, who, where):
             
             # Unknown requested quantity     
             else:
-                raise Exception("Unknown type: %s not in %s" % (type, str([f.name for f in ExerciseLog._meta.fields])))
+                raise Exception("Unknown type: '%s' not in %s" % (type, str([f.name for f in ExerciseLog._meta.fields])))
 
     return {
         "data": data,
@@ -225,27 +245,30 @@ def api_data(request, xaxis="", yaxis=""):
         return HttpResponseServerError("Must specify a topic path")
 
     # Query out the data: what?
-    computed_data = compute_data(types=[form.data.get("xaxis"), form.data.get("yaxis")], who=users, where=form.data.get("topic_path"))
-    json_data = {
-        "data": computed_data["data"],
-        "exercises": computed_data["exercises"],
-        "videos": computed_data["videos"],
-        "users": dict( zip( [u.id for u in users],
-                            ["%s, %s" % (u.first_name, u.last_name) for u in users]
-                     )),
-        "groups":  dict( zip( [g.id for g in groups],
-                             dict(zip(["id", "name"], [(g.id, g.name) for g in groups])),
-                      )),
-        "facility": None if not facility else {
-            "name": facility.name,
-            "id": facility.id,
+    try:
+        computed_data = compute_data(types=[form.data.get("xaxis"), form.data.get("yaxis")], who=users, where=form.data.get("topic_path"))
+        json_data = {
+            "data": computed_data["data"],
+            "exercises": computed_data["exercises"],
+            "videos": computed_data["videos"],
+            "users": dict( zip( [u.id for u in users],
+                                ["%s, %s" % (u.first_name, u.last_name) for u in users]
+                         )),
+            "groups":  dict( zip( [g.id for g in groups],
+                                 dict(zip(["id", "name"], [(g.id, g.name) for g in groups])),
+                          )),
+            "facility": None if not facility else {
+                "name": facility.name,
+                "id": facility.id,
+            }
         }
-    }
     
-    # Now we have data, stream it back with a handler for date-times
-    dthandler = lambda obj: obj.isoformat() if isinstance(obj, datetime.datetime) else None
-    return HttpResponse(content=json.dumps(json_data, default=dthandler), content_type="application/json")
-    
+        # Now we have data, stream it back with a handler for date-times
+        dthandler = lambda obj: obj.isoformat() if isinstance(obj, datetime.datetime) else None
+        return HttpResponse(content=json.dumps(json_data, default=dthandler), content_type="application/json")
+
+    except Exception as e:
+        return HttpResponseServerError(str(e))
     
     
 @csrf_exempt

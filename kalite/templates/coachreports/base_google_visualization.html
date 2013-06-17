@@ -19,6 +19,7 @@ You must:
             [other options with value=API key for that value, and nice text for it (via common views.py code)
 {% endcomment %}
 
+{% load i18n %}
 {% load my_filters %}
 {% load staticfiles %}
 
@@ -40,11 +41,14 @@ You must:
     width: 900px; 
     height: 500px;
 }
+.subtitle {
+    float: left;
+}
 </style>
 {% endblock headcss %}
 
 
-{% block headjs %}
+{% block headjs %}{{ block.super }}
 <script type="text/javascript" src="{% static 'js/jquery-ui.custom.min.js' %}"></script>
 <script type="text/javascript" src="{% static 'js/jquery.dynatree.min.js' %}"></script>
 <script type="text/javascript" src="{% static 'js/jquery.dynatree.extensions.js' %}"></script>
@@ -87,45 +91,69 @@ function stat2type(stat) {
 </script>
 
 <script type="text/javascript">
-function plotJsonData(chart_div, base_url, topic_paths, xaxis, yaxis) {
+function plotJsonData(chart_div, base_url, props) {
     /* Called whenever json data blob returns (via AJAX)
        NOTE: you have to implement drawJsonChart(chart_div, json, xaxis, yaxis); */
     
-    if (!xaxis || !yaxis) { // one of the ---- is selected
+    // Scrub data
+    if (!props["facility_id"]) { props["facility_id"] = "{{ form.facility_id }}"; }
+    if (!props["group_id"])    { props["group_id"]    = "{{ form.group_id }}"; }
+    if (!props["user_id"])     { props["user_id"]     = "{{ form.user_id }}"; }
+    if (!props["topic_path"])  { props["topic_path"]  = {{ form.topic_path|jsonify }}; }
+
+    if (!props["xaxis"] || !props["yaxis"] || !props["topic_path"] || props["topic_path"].length==0) { // one of the ---- is selected
         return false; 
     }
     
     // Get the data
-    var url = base_url + "?facility_id={{ form.facility_id }}&group_id={{ form.group_id }}&user_id={{ form.user_id }}";
-    url += ("&xaxis=" + xaxis + "&yaxis=" + yaxis);
-    
-    // Multiple topic paths
-    for (var i in topic_paths) {
-        url += "&topic_path=" + topic_paths[i];
+    var url = base_url + "?";
+    for (key in props) {
+        switch (key) {
+            case "topic_path":                // Multiple topic paths
+                for (var i in props[key]) {
+                    url += "topic_path=" + props[key][i] + "&";
+                }
+                break;
+            default:
+                url += key + "=" + props[key] + "&";
+        }
     }
 
     $.getJSON(url, function(json) {        
-        $("#loading").text("Drawing '" + stat2name(xaxis) + "' vs '" + stat2name(yaxis) + "'..."); 
-        drawJsonChart(chart_div, json, xaxis, yaxis);
+        $("#loading").text("Drawing '" + stat2name(props["xaxis"]) + "' vs '" + stat2name(props["yaxis"]) + "'..."); 
+        drawJsonChart(chart_div, json, props["xaxis"], props["yaxis"]);
         $("#loading").text(""); 
     }).fail(function(data) {
-        $("#loading").text("Failure (" + data.status + "): " + data.responseText); 
+        if (data.responseText == "too many SQL variables") {
+            errorMsg = "Too many topics; please select fewer topics and retry."
+        } else {
+            "Failure (" + data.status + "): " + data.responseText;
+        }
+        $("#loading").text(errorMsg);
     });
-    $("#loading").text("Loading '" + stat2name(xaxis) + "' vs. '" + stat2name(yaxis) + "'...");
+    $("#loading").text("Loading '" + stat2name(props["xaxis"]) + "' vs. '" + stat2name(props["yaxis"]) + "'...");
     $("#chart_div").html("");
 }
 
 
 function plotTopics(topic_paths) {
+    if (!$("#content_tree")) {
+        return false;
+    }
     if (topic_paths==null) {
         topic_paths = get_topic_paths_from_tree()
     }
     plotJsonData(
         "#chart_div",
         "{% url api_data %}",
-        topic_paths,
-        $("#xaxis option:selected").val(),
-        $("#yaxis option:selected").val()
+        {
+            "xaxis":       $("#xaxis option:selected").val(),
+            "yaxis":       $("#yaxis option:selected").val(),
+            "user_id":     "",
+            "group_id":    $("#group option:selected").val(), 
+            "facility_id": $("#facility option:selected").val(),
+            "topic_path":  topic_paths,
+        }
     );
 }
 </script>
@@ -136,10 +164,26 @@ function plotTopics(topic_paths) {
 
 
 {% block content %}
-    
-    <h2 class="main-headline">{% block headline %}{% endblock headline %}</h2>
-
     {% block navbar %}{{ block.super }}{% endblock navbar %}
+
+    <!-- a good way to do this would be to create these elements dynamically (in script),
+         and move this all to javascript. -->
+    <div id="content_tree_template">
+        <button id="content_tree_toggle">
+            Use selected topics
+        </button>
+        <div id="content_tree">
+            <br/>
+            <h2>Loading topic tree... Please wait!</h2>
+        </div>
+    </div>
+    
+    <div id="google-chart">
+    {% block chart_div %}
+        <div id="loading"></div>
+        <div id="chart_div" class="google-chart"></div>
+    {% endblock chart_div %}
+    </div>
 
     <div id="choose">
         <form id="select_data" name="select_data">
@@ -156,40 +200,17 @@ function plotTopics(topic_paths) {
         </form>
     </div>
 
-    <!-- a good way to do this would be to create these elements dynamically (in script),
-         and move this all to javascript. -->
-    <div id="content_tree_template">
-        <div id="content_tree">
-            <br/>
-            <h2>Loading topic tree... Please wait!</h2>
-        </div>
-        <button id="content_tree_toggle">
-            <span class="open">Select topics</span>
-            <span class="close">Use selected topics</span>
-        </button>
-    </div>
-    
-    <div id="google-chart">
-    {% block chart_div %}
-        <div id="loading"></div>
-        <div id="chart_div" class="google-chart"></div>
-    {% endblock chart_div %}
-    </div>
-
-
+{% block endjs %}{{ block.super }}
 <script type="text/javascript">
 
     $(function() {        
         window.showing_tree = false;
 
-        // Make sure that each dropdown has a callback 
-        //   to replot upon selection.
-        $("#xaxis").change(function() { plotTopics(null); });
-        $("#yaxis").change(function() { plotTopics(null); });
-
         // Select the values in the 
-        $("#xaxis").val("{{ form.xaxis }}");
-        $("#yaxis").val("{{ form.yaxis }}");
+        $("#xaxis").val("{{ form.xaxis }}").change();
+        $("#yaxis").val("{{ form.yaxis }}").change();
+        $("#group").val("{{ form.group_id }}").change();
+        $("#facility").val("{{ form.facility_id }}").change();
         
         
         setTimeout(function() {
@@ -197,6 +218,13 @@ function plotTopics(topic_paths) {
 
             // Register a callback
             window.toggle_tree_callbacks.push(plotTopics);
+
+            // Make sure that each dropdown has a callback 
+            //   to replot upon selection.
+            $("#xaxis").change(   function() { plotTopics(null); });
+            $("#yaxis").change(   function() { plotTopics(null); });
+            $("#group").change(   function() { changeData("group"); plotTopics(null); });
+            $("#facility").change(function() { changeData("facility"); plotTopics(null); });
 
             // When the button is clicked, toggle the view style
             $("#content_tree_toggle").click(function() {
@@ -240,4 +268,5 @@ function plotTopics(topic_paths) {
         }, 200); //200= callback wait time.
     });
 </script>
+{% endblock endjs %}
 {% endblock content %}

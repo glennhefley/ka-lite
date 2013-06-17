@@ -14,13 +14,17 @@ table.detail {
     border: 1px solid green;
 }
 
+table.detail td {
+    max-width: 70%;
+}
+
 table.detail td.data {
     width: 25%;
 }
 
 .tooltip > div {
     max-height: 100px;
-    overflow: scroll;
+    overflow: hidden;
     overflow-x: hidden;
     margin-top: 3px;
 }
@@ -29,7 +33,7 @@ table.detail td.data {
     overflow: hidden;
     float: left;
     vertical-align:middle;
-    padding-right: 5%;
+    /*padding-right: 5%;*/
 }
 
 .struggling {

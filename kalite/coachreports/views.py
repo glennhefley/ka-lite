@@ -43,32 +43,38 @@ def get_api_data(request, form):
 def scatter_view(request, facility, xaxis="", yaxis=""):
     return scatter_view_context(request, facility=facility, xaxis=xaxis, yaxis=yaxis)
 
+def get_accessible_objects_from_request(request, facility):
+
+    # Options to select.  Note that this depends on the user.
+    if request.user.is_superuser:
+        groups = FacilityGroup.objects.filter(facility=facility)
+        facilities = Facility.objects.all()
+    elif "facility_user" in request.session:
+        user = request.session["facility_user"]
+        facilities = [user.facility]
+        if user.group:
+            groups = [request.session["facility_user"].group]
+        else:
+            groups = FacilityGroup.objects.filter(facility=facility)
+    else:
+        facilities = [facility]
+        groups = FacilityGroup.objects.filter(facility=facility)
+
+    return (groups, facilities)
+            
 
 def scatter_view_context(request, facility, topic_path="/topics/math/arithmetic/", *args, **kwargs):
 
     # Get the form, and retrieve the API data
     form = get_data_form(request, facility=facility, topic_path=topic_path, *args, **kwargs)
-        
-    data = []
-    try:
-        pass#data = get_api_data(request, form)
-    except StatusException as se:
-        if se.status_code == 404:
-            return HttpResponseNotFound(se.message)
-        else:
-            return HttpResponseServerError(se.message)
-    
-    
-    # The API tries to be lean and mean with it's response objects and text,
-    #   and so mostly sends unique identifiers of objects, rather than
-    #   full data / names.
-    #
-    # Let's expose an end-point for retrieving user-friendly names
-    
+
+    (groups, facilities) = get_accessible_objects_from_request(request, facility)
+
     return {
         "form": form.data,
-        "data": data,
         "stats": stats_dict,
+        "groups": groups,
+        "facilities": facilities,
     }
     
 
@@ -109,16 +115,7 @@ def table_view(request, facility):
 @facility_required
 @render_to("coachreports/landing_page.html")
 def landing_page(request, facility):
-
-    form = get_data_form(request, facility=facility)
-    if not form.data.get("topic_path"):
-        form.data["topic_path"] = "/topics/math/arithmetic/"
-        form.data["facility_id"] = facility.id
-        
-    return {
-        "form": form.data
-    }
-
+    return scatter_view_context(request, facility=facility)
 
 
 @facility_required

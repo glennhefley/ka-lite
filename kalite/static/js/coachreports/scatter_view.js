@@ -18,7 +18,7 @@ function bySortedValue(obj, callback, context) {
 
 function tablifyThis(tuples, urlpath, descriptor) {
     var table = "<table class='detail'>";
-    for (var i in tuples) {
+    for (var i in tuples.slice(0,3)) {
         table += "<tr><td><a href='" + urlpath + tuples[i][0] + "'>" + tuples[i][0] + "</a></td>" + "<td class='data'>" + tuples[i][1] + descriptor +"</td>";
     }
     table += "</table>";
