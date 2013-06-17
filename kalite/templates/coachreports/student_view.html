@@ -1,11 +1,13 @@
 {% extends "coachreports/base_google_visualization.html" %}
 
-{% load repeatblock %}
+{% load i18n %}
 {% load my_filters %}
 {% load staticfiles %}
 {% block coachreports_active %}{% endblock coachreports_active %}
 {% block selfreports_active %}active{% endblock selfreports_active %}
-
+{% block navbar_topics %}{% endblock navbar_topics %}
+{% block navbar_makelink %}{% endblock navbar_makelink %}
+{% block report_title %}Self-report{% endblock report_title %}
 
 {% block headjs %} {{ block.super }}
 <script type="text/javascript" src="/static/js/coachreports/scatter_view.js"></script>
@@ -15,57 +17,53 @@
 {% block headcss %} {{ block.super }}
 <link rel='stylesheet' type='text/css' href='{% static "css/coachreports/scatter_view.css" %}'>
 <!--link rel='stylesheet' type='text/css' href='{% static "css/coachreports/timeline_view.css" %}'-->
+<style>
+tr.invisible { display:none; }
+td.pct, td.float, td.int { text-align: right; }
+td.struggling { background-color: #aa0; font-weight: bold; %}
+</style>
 {% endblock headcss %}
 
 {% block content %}
 {% block navbar %}{{ block.super }}{% endblock navbar %}
 
-<div id="scatter">
-    <h1>Scatter plot</h1>
-
-    <div id="choose">
-        <form id="select_data" name="select_data">
-        {% block axis_dropdown %}
-            <select id="xaxis" name="xaxis">
-                {% block data_options %}{{ block.super }}{% endblock %}
-            </select>
-            <select id="yaxis" name="yaxis">
-                {% repeatblock data_options %}
-            </select>
-        {% endblock axis_dropdown %}
-        </form>
-    </div>
-
-    <div id="google-chart">
-    {% block chart_div %}
-        <div id="loading"></div>
-        <div id="scatter_div" class="google-chart"></div>
-    {% endblock chart_div %}
-    </div>
-</div>
-
-
-<script type="text/javascript">
-{% mkrange 0 2 as axes_range %}
-{% for ai in axes_range %}
-    {% cycle "scatter_xaxis"  "scatter_yaxis"  as axis_value silent %}
-    $("#{{ axis_value }}").change(function(){
-        plotJsonData(
-            "#scatter_div",
-            "{% url api_data %}",
-            "{{ form.topic_path }}", 
-            $("#xaxis option:selected").val(),
-            $("#yaxis option:selected").val()
-        );
-    });
+<h2>Topics Table</h2>
+<table>
+    <tr>
+        <th>&nbsp;</th>
+        <th>{% trans "Topic name" %}</th>
+        {% for def in stat_defs %}
+        <th>{{ def.title }}</th>
+        {% endfor %}
+    </tr>
+    
+{% for topic in topics %}
+    <tr class="{% if exercise_logs|get_item:topic.id %}visible{% else %}invisible{% endif %}">
+        <td>
+            <div class="progress-circle {% if stats|get_item:topic.id|get_item:'pct_mastery' = 1.0 %}complete{% else %}partial{% endif %}">
+            &nbsp;
+            </div>
+        </td>
+        <td>
+            <span title="{{ topic.description }}">
+                <a href="{{ topic.path }}">{{ topic.title }}</a>
+            </span>
+        </td>
+        {% for def in stat_defs %}
+        <td class="{{ def.type }}{% if def.key == 'total_struggling' and stats|get_item:topic.id|get_item:def.key > 0 %} struggling{% endif %}"">
+            {% if def.type == "float" %}
+                {{ stats|get_item:topic.id|get_item:def.key|floatformat }}
+            {% elif def.type == "pct" %}
+                {{ stats|get_item:topic.id|get_item:def.key|percent }}
+            {% elif def.type == "date" %}
+                {{ stats|get_item:topic.id|get_item:def.key|date:"SHORT_DATE_FORMAT" }}
+            {% else %}
+                {{ stats|get_item:topic.id|get_item:def.key }}
+            {% endif %}
+        </td>
+        {% endfor %}
+    </tr>
 {% endfor %}
-
-    plotJsonData(
-        "#scatter_div",
-        "{% url api_data %}",
-        "{{ form.topic_path }}", 
-        "{{ form.xaxis }}", 
-        "{{ form.yaxis }}"
-    );
-</script>
+</table>
+{% block endjs %}{{ block.super }}{% endblock endjs %}
 {% endblock content %}

@@ -79,8 +79,10 @@ function changeData(type) {
     });
 }
 function make_editable(type) {
-    $("#" + type + "_editable").hide();
-    $("#" + type).show();
+    if ($("#" + type + " option").length>1) {
+        $("#" + type + "_editable").hide();
+        $("#" + type).show();
+    }
 }
 </script>
 {% endblock headjs %}
@@ -107,6 +109,16 @@ function make_editable(type) {
             {% block report_title %}{% trans "Coach Reports" %}{% endblock %}
              for&nbsp;
         </div>
+
+        {% block navbar_user %}
+        {% if user %}
+        <div id="select-user" class="selection">
+            <span id="user">{{ user.first_name }} {{ user.last_name }}</span>
+        (
+        </div>
+        {% endif %}
+        {% endblock navbar_user %}
+        
         {% block navbar_facilities %}
         <div id="select-facilities" class="selection">
             <select id="facility">
@@ -118,13 +130,17 @@ function make_editable(type) {
                 <option value="" selected>[{% trans "this device" %}]</option>
             {% endif %}
             </select>
+            {% if facilities|length > 1 %}
             <a id="facility_editable" href="javascript:make_editable('facility')"></a>
+            {% else %}
+            <span id="facility_editable"></span>
+            {% endif %}
         </div>
         {% endblock navbar_facilities %}
 
         {% block navbar_groups %}
         <div id="select-groups" class="selection">
-            <div class="subtitle"> {% if groups %}/&nbsp;{% endif %}</div>
+            <div class="subtitle"> {% if facilities and groups %}/&nbsp;{% endif %}</div>
             <select id="group">
             {% if groups %}
                 <option value="">[all groups]</option>
@@ -135,10 +151,15 @@ function make_editable(type) {
                 <option value="" selected></option>
             {% endif %}
             </select>
+            {% if groups|length > 1 %}
             <a id="group_editable" href="javascript:make_editable('group')"></a>
+            {% else %}
+            <span id="group_editable"></span>
+            {% endif %}
         </div>
         {% endblock navbar_groups %}
-        
+        {% if user %}){% endif %}        
+
         <div class="clearfix">
             {% block navbar_makelink %}
             <div  style="float:right;margin-right:25px;">
