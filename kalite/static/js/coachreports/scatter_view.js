@@ -36,7 +36,6 @@ function json2dataTable(json, xaxis, yaxis) {
     dataTable.addColumn(stat2type(xaxis), xaxis);
     dataTable.addColumn(stat2type(yaxis), yaxis);
     dataTable.addColumn({'type': 'string', 'role': 'tooltip', 'p': {'html': true}});
-
     // 
     for (var user in json['data']) {
         var xdata = obj2num(json['data'][user][xaxis], xaxis);
@@ -47,11 +46,15 @@ function json2dataTable(json, xaxis, yaxis) {
   }
   
 function user2tooltip(json, user, xaxis, yaxis) {
-    var axes = [xaxis, yaxis];
+    var axes = [xaxis];
+    var exercises = json['exercises'];
+    var videos = json['videos'];
     var tooltip = "<div class='tooltip'>";
     tooltip += "<div class='username'>" + json['users'][user] + "</div>";
     for (var ai in axes) {
-    
+        if(axes[ai] == 'pct_mastery' | axes[ai] == 'effort'){
+            axes[ai] = 'ex:attempts';
+        }
         // Some data don't have details, they're derived.
         var row = json['data'][user][axes[ai]];
         if (typeof row == 'number')
@@ -62,17 +65,44 @@ function user2tooltip(json, user, xaxis, yaxis) {
         if (stat_types.length < 2)  // should never actually hit this
             stat_types = ["[Derived]", "[Derived]"];
         
-        tooltip += "<table class='detail'>";
-        tooltip += "<tr><th>" + (stat_types[0] == "ex" ? "Exercise" : "Video") + "</th><th>" + stat_types[1] + "</th>";
-        for (var d in row) {
-            if (stat_types[0] == "ex")
-                var url = "/videos/?youtube_id=" + d;
-            else
-                var url = "/exercise/" + d; // need to funnel in the topic_path here
-            
-            tooltip += "<tr><td><a href='" + url + "'>" + d + "</a></td>" + "<td>" + row[d] + "</td></tr>";
+        var struggling = "<div class='struggling'><table class='detail'>";
+        var attempted = "<div class='attempted'><table class='detail'>";
+        var notattempted = "<div class='notattempted'><table class='detail'>";
+        if (stat_types[0] == "ex") {
+            struggling += "<tr><th>" + "Exercise" + "</th><th>" + stat_types[1] + "</th>";
+            attempted += "<tr><th>" + "Exercise" + "</th><th>" + stat_types[1] + "</th>";
+            notattempted += "<tr><th>" + "Exercise" + "</th>";
+            for (var i in exercises) {
+                var url = "/exercise/" + exercises[i]; // need to funnel in the topic_path here
+                if (exercises[i] in row) {
+                    d = exercises[i]
+                    inc = "<tr><td><a href='" + url + "'>" + d + "</a></td>" + "<td>" + row[d] + "</td></tr>";
+                    if (parseInt(row[d]) >= 30) {
+                        struggling += inc;
+                    } else {
+                        attempted += inc;
+                    }
+                } else {
+                    notattempted += "<tr><td><a href='" + url + "'>" + exercises[i] + "</a></td>"; 
+                }
+            }
+        } else {
+            attempted += "<tr><th>" + "Video" + "</th><th>" + stat_types[1] + "</th>";
+            notattempted += "<tr><th>" + "Video" + "</th>";
+            for (var i in videos) {
+                var url = "/videos/?youtube_id=" + videos[i];
+                if (videos[i] in row) {
+                    d = videos[i]
+                    attempted += "<tr><td><a href='" + url + "'>" + d + "</a></td>" + "<td>" + row[d] + "</td></tr>";
+                } else {
+                    notattempted += "<tr><td><a href='" + url + "'>" + videos[i] + "</a></td>"; 
+                }
+            }
         }
-        tooltip += "</table>";
+        struggling += "</table></div>";
+        attempted += "</table></div>";
+        notattempted += "</table></div>";
+        tooltip += (stat_types[0] == "ex" ? struggling : "") + notattempted + attempted;
     }
     tooltip += "</div>"
     

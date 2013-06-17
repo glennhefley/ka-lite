@@ -19,3 +19,33 @@ table.detail th {
 table.detail td {
     background-color: #ccf;
 }
+
+.tooltip div {
+    max-height: 100px;
+    overflow: scroll;
+    overflow-x: hidden;
+}
+
+.struggling table th {
+    background-color: #faa;
+}
+
+.struggling table td {
+    background-color: #fcc;
+}
+
+.notattempted table th {
+    background-color: #999;
+}
+
+.notattempted table td {
+    background-color: #ccc;
+}
+
+.attempted table th {
+    background-color: #afa;
+}
+
+.attempted table td {
+    background-color: #cfc;
+}

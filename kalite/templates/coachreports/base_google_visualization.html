@@ -2,7 +2,7 @@
 {% comment %}
 This template is a basic skeleton around a Google Visualization plot.  It has the following parts:
 
-* Loads scripts necessary for Google Visaulizations (locally)
+* Loads scripts necessary for Google Visualizations (locally)
 * Has a div for plotting, and a div for status message (loading)
 
 You must:
@@ -39,6 +39,10 @@ if (window['google'] != undefined && window['google']['loader'] != undefined) {
 }
 </script>
 <script type="text/javascript" src="/static/js/coachreports/google.jsapi.js"></script>
+
+<script src="{% static "js/jquery-ui.custom.min.js" %}"></script>
+<script src="{% static "js/jquery.dynatree.min.js" %}"></script>
+
 <script type="text/javascript">
 function stat2name(stat) {
     var children = $("#xaxis option");
@@ -50,17 +54,10 @@ function stat2name(stat) {
     return null;
 }
 
-function plotJsonData(chart_div, base_url, topic_path, xaxis, yaxis) {
+function plotJsonData(chart_div, base_url, topic_paths, xaxis, yaxis) {
     /* Called whenever json data blob returns (via AJAX)
        NOTE: you have to implement drawJsonChart(chart_div, json, xaxis, yaxis); */
     
-    //
-    if (xaxis && xaxis != $("#xaxis option:selected").val()) {
-        $("#xaxis").val(xaxis);
-    }
-    if (yaxis && yaxis != $("#yaxis option:selected").val()) {
-        $("#yaxis").val(yaxis);
-    }
     if (!xaxis || !yaxis) { // one of the ---- is selected
         return false; 
     }
@@ -69,22 +66,20 @@ function plotJsonData(chart_div, base_url, topic_path, xaxis, yaxis) {
     var url = base_url + "?facility_id={{ form.facility_id }}&group_id={{ form.group_id }}&user_id={{ form.user_id }}";
     url += ("&xaxis=" + xaxis + "&yaxis=" + yaxis);
     
-    for (var i in topic_path){
-        url += "&topic_path=" + topic_path[i];
+    for (var i in topic_paths) {
+        url += "&topic_path=" + topic_paths[i];
     }
 
-    $.getJSON(url, function(json) {
-        window.json = json;
-        
-        $("#loading").text("Drawing " + stat2name(xaxis) + " " + stat2name(yaxis)); 
+    $.getJSON(url, function(json) {        
+        $("#loading").text("Drawing '" + stat2name(xaxis) + "' vs '" + stat2name(yaxis) + "'..."); 
         drawJsonChart(chart_div, json, xaxis, yaxis);
         $("#loading").text(""); 
     }).fail(function(data) {
         $("#loading").text("Failure (" + data.status + "): " + data.responseText); 
     });
-    $("#loading").text("Loading " + stat2name(xaxis) + " vs. " + stat2name(yaxis)); 
+    $("#loading").text("Loading '" + stat2name(xaxis) + "' vs '" + stat2name(yaxis) + "'");
+    $("#chart_div").html("");
 }
-
 
 function stat2type(stat) {
     switch (stat) {
@@ -100,6 +95,7 @@ function stat2type(stat) {
 
 {% block headcss %} {{ block.super }}
 <link rel='stylesheet' type='text/css' href='{% static "css/coachreports/google.tooltip.css" %}'>
+<link href="{% static "css/ui.dynatree.css" %}" rel="stylesheet" type="text/css"/>
 <style>
 #loading {
     width:100%;
@@ -109,6 +105,9 @@ function stat2type(stat) {
 .google-chart {
     width: 900px; 
     height: 500px;
+}
+#content_tree_toggle .open {
+    display: none;
 }
 </style>
 {% endblock headcss %}
@@ -135,6 +134,9 @@ function stat2type(stat) {
     </form>
 </div>
 
+<div id="content_tree"><br/><h2>Loading topic tree... Please wait!</h2></div>
+<button id="content_tree_toggle"><span class="open">Select topics</span><span class="close">Use selected topics</span></button>
+
 <div id="google-chart">
 {% block chart_div %}
     <div id="loading"></div>
@@ -150,19 +152,82 @@ function stat2type(stat) {
         plotJsonData(
             "#chart_div",
             "{% url api_data %}",
-            {{ form.topic_path|jsonify }}, 
+            get_topic_prefixes_from_tree(), 
             $("#xaxis option:selected").val(),
             $("#yaxis option:selected").val()
         );
     });
 {% endfor %}
 
-    plotJsonData(
-        "#chart_div",
-        "{% url api_data %}",
-        {{ form.topic_path|jsonify }}, 
-        "{{ form.xaxis }}", 
-        "{{ form.yaxis }}"
-    );
+    function plotTopics(topics) {
+        plotJsonData(
+            "#chart_div",
+            "{% url api_data %}",
+            topics,
+            $("#xaxis option:selected").val(),
+            $("#yaxis option:selected").val()
+        );
+    }
+    
+    // TODO(jamalex): have these topics get selected in the tree and trigger plot
+    window.preselected_topics = {{ form.topic_path|jsonify }};
+
+    $(function() {        
+
+        $("#xaxis").val("{{ form.xaxis }}");
+        $("#yaxis").val("{{ form.yaxis }}");
+        
+        setTimeout(function() {
+            doRequest("/coachreports/api/get_math_topic_tree", {}).success(function(treeData) {
+                
+                $("#content_tree").dynatree({
+                    imagePath:"../images/",
+                    checkbox: true,
+                    selectMode: 3,
+                    children: treeData,
+                    debugLevel: 0,
+                    onSelect: function(select, node) {
+                        
+                    },
+                    onDblClick: function(node, event) {
+                        node.toggleSelect();
+                    },
+                    onKeydown: function(node, event) {
+                        if( event.which == 32 ) {
+                            node.toggleSelect();
+                            return false;
+                        }
+                    },
+                    onPostInit: function() {
+
+                    }
+                });
+                        
+            });
+        }, 200);
+
+        // open and close the topic tree, and call `display_selected_topics` when closed
+        var showing_tree = true;
+        $("#content_tree_toggle").click(function() {
+            showing_tree = !showing_tree;
+            $("#content_tree_toggle span").toggle();
+            $("#content_tree").slideToggle();
+            if (!showing_tree) {
+                plotTopics(get_topic_prefixes_from_tree());
+            }
+        });
+
+    });
+
+    function get_topic_prefixes_from_tree() {
+        var paths = [];
+        $.each($("#content_tree").dynatree("getSelectedNodes"), function(ind, node) {
+            if (!node.parent.parent || !node.parent.bSelected) {
+                paths.push(node.data.key);
+            }
+        });
+        return paths;
+    }
+
 </script>
 {% endblock content %}
