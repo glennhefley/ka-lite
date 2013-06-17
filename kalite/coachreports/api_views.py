@@ -23,7 +23,7 @@ from config.models import Settings
 # Global variable of all the known stats, their internal and external names, 
 #    and their "datatype" (which is a value that Google Visualizations uses)
 stats_dict = [
-    { "key": "pct_mastery",        "name": "Mastery",             "type": "number" },
+    { "key": "pct_mastery",        "name": "% Mastery",          "type": "number" },
     { "key": "effort",             "name": "Effort",             "type": "number" },
     { "key": "ex:attempts",        "name": "Average attempts",   "type": "number" },
     { "key": "ex:streak_progress", "name": "Average streak",     "type": "number" },
@@ -49,15 +49,17 @@ def get_data_form(request, *args, **kwargs):
     data["topic_path"] = request.REQUEST.getlist("topic_path")
     form = DataForm(data = data)
     
-    # get the selected facility from the arg passed by @facility_required, if needed
-    if not form.data["facility_id"]:
-        form.data["facility_id"] = getattr(kwargs["facility"], "id", "")
-                
-    if "facility_user" in request.session:
+    if not "facility_user" in request.session:
+        if request.user.is_superuser:
+            import pdb; pdb.set_trace()
+            facility = getattr(kwargs.get("facility"), "id", "")
+        
+    else:
         user = request.session["facility_user"]
         group = None if not user else user.group
-        facility = None if not user else user.facility
-        
+        # Facility can come from user, facility 
+        facility = kwargs.get("facility") if not user else user.facility
+
         # Fill in default query data
         if not (form.data["facility_id"] or form.data["group_id"] or form.data["user_id"]):
         
@@ -75,6 +77,7 @@ def get_data_form(request, *args, **kwargs):
             else:
                 form.data["user_id"] = user.id    
         
+        ######
         # Authenticate
         if group and form.data["group_id"] and group.id != form.data["group_id"]: # can't go outside group
             # We could also redirect

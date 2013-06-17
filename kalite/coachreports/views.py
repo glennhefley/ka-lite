@@ -37,6 +37,7 @@ def get_api_data(request, form):
 """
 
 #@require_admin
+@require_login
 @facility_required
 @render_to("coachreports/scatter_view.html")
 def scatter_view(request, facility, xaxis="", yaxis=""):
@@ -71,18 +72,20 @@ def scatter_view_context(request, facility, topic_path="/topics/math/arithmetic/
     }
     
 
+@require_login
 @facility_required
 @render_to("coachreports/timeline_view.html")
 def timeline_view(request, facility, xaxis="", yaxis=""):
     return scatter_view_context(request, facility=facility, xaxis=xaxis, yaxis=yaxis)
 
+@require_login
 @facility_required
 @render_to("coachreports/student_view.html")
 def student_view(request, facility, xaxis="pct_mastery", yaxis="ex:attempts"):
     context = scatter_view_context(request, facility=facility, xaxis=xaxis, yaxis=yaxis)
     return context
 
-#@require_admin
+@require_login
 @facility_required
 @render_to("coachreports/table_view.html")
 def table_view(request, facility):

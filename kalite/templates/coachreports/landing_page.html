@@ -38,7 +38,7 @@ td.links {
         <tr>
             <td>
                 <div class="vertical-shadow suggested-action">
-                    <a href="{% url timeline_view %}">
+                    <a href="{% url timeline_view %}?topic_path={{ form.topic_path }}">
                         <h2 class="suggested-action-title">{% trans "Explore student master over time" %}</h2>
                         <div class="suggested-action-image-link" style="background-image: url({% static "images/coach-report-table.png" %});"></div>
                     </a>
@@ -46,7 +46,7 @@ td.links {
             </td>
             <td>
                 <div class="vertical-shadow suggested-action">
-                    <a href="{% url scatter_view %}">
+                    <a href="{% url scatter_view %}?topic_path={{ form.topic_path }}">
                         <h2 class="suggested-action-title">{% trans "Explore student mastery to effort" %}</h2>
                         <div class="suggested-action-image-link" style="background-image: url({% static "images/coach-report-scatter.png" %});"></div>
                     </a>
