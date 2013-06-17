@@ -1,5 +1,9 @@
 # based on: http://www.djangosnippets.org/snippets/1926/
 from django.template import Library, Node, TemplateSyntaxError
+from django.core.serializers import serialize
+from django.db.models.query import QuerySet
+from django.utils import simplejson
+from django.utils.safestring import mark_safe
 
 register = Library()
 
@@ -109,3 +113,9 @@ class IncludeBlockNode(Node):
     def render(self, context):
         t = get_template(self.include_file)
         return self._get_node(t, context, self.block_name)
+
+@register.filter
+def jsonify(object):
+    if isinstance(object, QuerySet):
+        return serialize('json', object)
+    return mark_safe(simplejson.dumps(object))
