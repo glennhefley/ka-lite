@@ -82,10 +82,11 @@ def student_view(request, facility, xaxis="pct_mastery", yaxis="ex:attempts"):
     return context
 
 #@require_admin
+@facility_required
 @render_to("coachreports/table_view.html")
-def table_view(request):
+def table_view(request, facility):
 
-    form = get_data_form(request)
+    form = get_data_form(request, facility=facility)
     try:
         data = get_api_data(request, form)
     except StatusException as se:
@@ -101,12 +102,14 @@ def table_view(request):
 
 
 @require_login
+@facility_required
 @render_to("coachreports/landing_page.html")
-def landing_page(request):
+def landing_page(request, facility):
 
-    form = get_data_form(request)
+    form = get_data_form(request, facility=facility)
     if not form.data.get("topic_path"):
         form.data["topic_path"] = "/topics/math/arithmetic/"
+        form.data["facility_id"] = facility.id
         
     return {
         "form": form.data
