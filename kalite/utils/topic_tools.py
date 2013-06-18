@@ -190,13 +190,12 @@ def get_topic_exercises(topic_id=None, path=None, sort=True, data_path=settings.
     return exercises
 
 
-def get_topic_videos(topic_id=None, topics=None):
+def get_topic_videos(topic_id=None, path=None, topics=None):
     """Gets all video nodes under the topic ID.  
     If topid ID is None, returns all videos under the topics node. """
     
     if topics is None:
         topics = topicdata.TOPICS
-
 
     # Found the topic!
     if topics.get("id",None) and (topics.get("id")==topic_id or topic_id is None):
@@ -213,7 +212,7 @@ def get_topic_videos(topic_id=None, topics=None):
     elif topics.get("children",None):
         videos = []
         for topic in topics.get("children"):
-            videos += get_topic_videos(topic_id, topic)
+            videos += get_topic_videos(topic_id=topic_id, topics=topic)
                 
         return videos   
     

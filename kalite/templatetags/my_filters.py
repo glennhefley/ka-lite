@@ -119,3 +119,13 @@ def jsonify(object):
     if isinstance(object, QuerySet):
         return serialize('json', object)
     return mark_safe(simplejson.dumps(object))
+    
+from django import template
+
+from django.template.defaultfilters import floatformat
+
+@register.filter
+def percent(value, precision):
+  if value is None:
+    return None
+  return floatformat(value * 100.0, precision) + '%' 
