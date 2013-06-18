@@ -7,7 +7,8 @@
 {% block selfreports_active %}active{% endblock selfreports_active %}
 {% block navbar_topics %}{% endblock navbar_topics %}
 {% block navbar_makelink %}{% endblock navbar_makelink %}
-{% block report_title %}Self-report{% endblock report_title %}
+{% block report_title %}User report{% endblock report_title %}
+{% block title %}User report{% endblock %}
 
 {% block headjs %} {{ block.super }}
 <script type="text/javascript" src="/static/js/coachreports/scatter_view.js"></script>
@@ -54,11 +55,22 @@ td.struggling { background-color: #aa0; font-weight: bold; %}
             {% if def.type == "float" %}
                 {{ stats|get_item:topic.id|get_item:def.key|floatformat }}
             {% elif def.type == "pct" %}
-                {{ stats|get_item:topic.id|get_item:def.key|percent }}
+                {{ stats|get_item:topic.id|get_item:def.key|percent:1 }}
             {% elif def.type == "date" %}
                 {{ stats|get_item:topic.id|get_item:def.key|date:"SHORT_DATE_FORMAT" }}
-            {% else %}
+            {% elif def.key != "total_struggling" %}
                 {{ stats|get_item:topic.id|get_item:def.key }}
+            {% else %}
+                {% for exercise_log in exercise_logs|get_item:topic.id %}
+                    {% if exercise_log.struggling %}
+                        {% cycle 'a' 'b' 'c' 'd' 'e' 'f' 'g' 'h' 'i' 'j' 'k' 'l' 'm' 'n' 'o' 'p' as letter silent %}
+                        {% for exercise in exercises|get_item:topic.id %}
+                            {% if exercise.name = exercise_log.exercise_id %}
+                            <a href="{{ exercise.path }}">{{ letter }}</a>
+                            {% endif %}
+                        {% endfor %}
+                    {% endif %}
+                {% endfor %}
             {% endif %}
         </td>
         {% endfor %}

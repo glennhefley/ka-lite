@@ -103,11 +103,12 @@ def student_view(request, facility, xaxis="pct_mastery", yaxis="ex:attempts"):
     video_logs = dict()
     exercise_sparklines = dict()
     stats = dict()
+    topic_exercises = dict()
     for topic in topics:
 
-        topic_exercises = get_topic_exercises(path=topic['path'])
-        n_exercises = len(topic_exercises)
-        exercise_logs[topic['id']] = ExerciseLog.objects.filter(user=user, exercise_id__in=[t['name'] for t in topic_exercises]).order_by("completion_timestamp")
+        topic_exercises[topic['id']] = get_topic_exercises(path=topic['path'])
+        n_exercises = len(topic_exercises[topic['id']])
+        exercise_logs[topic['id']] = ExerciseLog.objects.filter(user=user, exercise_id__in=[t['name'] for t in topic_exercises[topic['id']]]).order_by("completion_timestamp")
         n_exercises_touched = len(exercise_logs[topic['id']])
 
 
@@ -119,10 +120,10 @@ def student_view(request, facility, xaxis="pct_mastery", yaxis="ex:attempts"):
         exercise_sparklines[topic['id']] = [el.completion_timestamp for el in filter(lambda n: n.complete, exercise_logs[topic['id']])]
         
         stats[topic['id']] = {
+            "pct_mastery":      0 if not n_exercises_touched else sum([el.complete for el in exercise_logs[topic['id']]])/float(n_exercises),
             "pct_started":      0 if not n_exercises_touched else n_exercises_touched/float(n_exercises),
             "average_points":   0 if not n_exercises_touched else sum([el.points for el in exercise_logs[topic['id']]])/float(n_exercises_touched),
             "average_attempts": 0 if not n_exercises_touched else sum([el.attempts for el in exercise_logs[topic['id']]])/float(n_exercises_touched),
-            "pct_mastery":      0 if not n_exercises_touched else sum([el.complete for el in exercise_logs[topic['id']]])/float(n_exercises_touched),
             "total_struggling": 0 if not n_exercises_touched else sum([el.struggling for el in exercise_logs[topic['id']]]),
             "last_completed":None if not n_exercises_touched else max([el.completion_timestamp or datetime.datetime(year=1900, month=1, day=1) for el in exercise_logs[topic['id']]]),
         }
@@ -135,6 +136,7 @@ def student_view(request, facility, xaxis="pct_mastery", yaxis="ex:attempts"):
         "student": user,
         "topics": topics,
         "topic_ids": topic_ids,
+        "exercises": topic_exercises,
         "exercise_logs": exercise_logs,
         "video_logs": video_logs,
         "exercise_sparklines": exercise_sparklines,
