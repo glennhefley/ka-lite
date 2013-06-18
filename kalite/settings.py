@@ -171,6 +171,7 @@ else:
     )
     TEMPLATE_CONTEXT_PROCESSORS += (
         "main.custom_context_processors.languages",
+        "main.custom_context_processors.custom",
     )
     INSTALL_CERTIFICATES = getattr(local_settings, "INSTALL_CERTIFICATES", [])
 
