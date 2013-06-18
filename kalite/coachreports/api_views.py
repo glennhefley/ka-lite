@@ -307,7 +307,6 @@ def convert_topic_tree(node, level=0):
         }
     return None
 
-@require_admin
 def get_topic_tree(request, topic_path="/topics/math/"):
     return JsonResponse(convert_topic_tree(get_topic_by_path(topic_path)));
     
