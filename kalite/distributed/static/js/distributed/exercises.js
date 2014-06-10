@@ -693,6 +693,9 @@ window.ExerciseView = Backbone.View.extend({
 
     render: function() {
 
+        // ensure that the user hasn't added any GET params that interfere with khan-exercises
+        this.redirect_on_bad_get_params();
+
         this.$el.html(this.template(this.data_model.attributes));
 
         this.initialize_listeners();
@@ -802,6 +805,11 @@ window.ExerciseView = Backbone.View.extend({
             first_video: related_videos[0],
             other_videos: related_videos.slice(1)
         });
+    },
+
+    redirect_on_bad_get_params: function() {
+        // redirect if the user added GET params that would interfere with khan-exercises
+
     }
 
 });
