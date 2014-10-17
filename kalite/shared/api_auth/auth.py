@@ -2,7 +2,7 @@ from django.conf import settings
 from django.utils.translation import ugettext as _
 
 from tastypie.exceptions import NotFound, Unauthorized
-from tastypie.authorization import Authorization
+from tastypie.authorization import Authorization, ReadOnlyAuthorization
 
 
 class UserObjectsOnlyAuthorization(Authorization):
@@ -189,6 +189,7 @@ def tastypie_require_admin(handler):
         bundle = kwargs.get("bundle", args[0])
 
         # TODO(jamalex): figure out how best to apply this on the central server once needed
+        # (possibly using ObjectAdminAuthorization below)
         assert not settings.CENTRAL_SERVER
 
         if _user_is_admin(bundle):
@@ -198,3 +199,44 @@ def tastypie_require_admin(handler):
 
     return require_admin_wrapper_fn
 
+
+class ObjectAdminAuthorization(ReadOnlyAuthorization):
+    """
+    On distributed: Only allow teachers or admins affiliated with the zone
+    On central: only allow central server admins affiliated with that zone
+    On both: super users do whatever they want
+    """
+
+    def _is_central_object_admin(self, object_list, bundle):
+        """Return true if the central server user is allowed to access the objects"""
+        user = bundle.request.user
+        if not user.is_authenticated():
+            return False
+        else:
+            # check that user can access each object we are returning
+            for obj in object_list:
+                # note that this authorization only works for syncable objects
+                if not user.get_profile().has_permission_for_object(obj):
+                    return False
+            return True
+
+    def read_list(self, object_list, bundle):
+        # On Central
+        if settings.CENTRAL_SERVER and self._is_central_object_admin(object_list, bundle):
+            return object_list
+        # on distributed
+        elif bundle.request.is_admin:
+            return object_list
+        else:
+            raise Unauthorized("Sorry, that operation is restricted.")
+
+
+    def read_detail(self, object_list, bundle):
+        # On Central
+        if settings.CENTRAL_SERVER and self._is_central_object_admin(object_list, bundle):
+            return True
+        # on distributed
+        elif bundle.request.is_admin:
+            return True
+        else:
+            raise Unauthorized("Sorry, that operation is restricted.")
