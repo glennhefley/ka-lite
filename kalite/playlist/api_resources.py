@@ -5,7 +5,7 @@ from tastypie.resources import ModelResource, Resource
 from .models import PlaylistToGroupMapping, QuizLog, VanillaPlaylist as Playlist, VanillaPlaylistEntry as PlaylistEntry
 from kalite.shared.contextmanagers.db import inside_transaction
 from kalite.topic_tools import video_dict_by_video_id, get_slug2id_map
-from kalite.shared.api_auth import UserObjectsOnlyAuthorization
+from kalite.shared.api_auth import UserObjectsOnlyAuthorization, tastypie_require_admin
 from kalite.facility.api_resources import FacilityUserResource
 
 
@@ -22,6 +22,9 @@ class PlaylistResource(Resource):
         resource_name = 'playlist'
         # Use plain python object first instead of full-blown Django ORM model
         object_class = Playlist
+        # STANDARD AUTH DOES NOT WORK (becuase we override methods below)
+        # Instead, we add decorators directly on the methods.
+        # authorization = AdminReadWriteAndStudentReadOnlyAuthorization()
 
     def detail_uri_kwargs(self, bundle_or_obj):
         kwargs = {}
@@ -78,6 +81,7 @@ class PlaylistResource(Resource):
     def obj_create(self, request):
         raise NotImplemented("Operation not implemented yet for playlists.")
 
+    @tastypie_require_admin
     def obj_update(self, bundle, **kwargs):
         new_group_ids = set([group['id'] for group in bundle.data['groups_assigned']])
         playlist = Playlist(**bundle.data)
