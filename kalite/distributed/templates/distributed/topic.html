@@ -52,7 +52,7 @@
         {% for subtopic in topics %}
         <li>
             <span>
-                <a href="{{ subtopic.path }}" class="topic-link topic-{% if not subtopic.available %}un{% endif %}available" title="{% blocktrans with avail=subtopic.nvideos_available known=subtopic.nvideos_known local=subtopic.nvideos_local %}{{ avail }} / {{ known }} video(s) are available ({{ local }} locally).{% endblocktrans %}">
+                <a href="{{ subtopic.path }}" class="topic-link topic-available">
                     {% trans subtopic.title %}
                 </a>
             </span>
@@ -74,10 +74,10 @@
             3. Online, local video
             4. Online, no local video
             {% endcomment %}
-            <a href="{{ video.path }}" class="video-link client-online-only video-{% if not video.available %}un{% endif %}available">
+            <a href="{{ video.path }}" class="video-link client-online-only video-available">
                 {% trans video.title %}
             </a>
-            <a href="{{ video.path }}" class="video-link not-client-online-only video-{% if not video.on_disk %}un{% endif %}available">
+            <a href="{{ video.path }}" class="video-link not-client-online-only video-available">
                 {% trans video.title %}
             </a>
 

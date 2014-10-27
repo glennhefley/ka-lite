@@ -76,36 +76,36 @@ def check_setup_status(handler):
 
 def refresh_topic_cache(handler, force=False):
 
-    def strip_counts_from_ancestors(node):
-        """
-        Remove relevant counts from all ancestors
-        """
-        for ancestor_id in node.get("ancestor_ids", []):
-            ancestor = topic_tools.get_ancestor(node, ancestor_id)
-            if "nvideos_local" in ancestor:
-                del ancestor["nvideos_local"]
-            if "nvideos_known" in ancestor:
-                del ancestor["nvideos_known"]
-        return node
+    # def strip_counts_from_ancestors(node):
+    #     """
+    #     Remove relevant counts from all ancestors
+    #     """
+    #     for ancestor_id in node.get("ancestor_ids", []):
+    #         ancestor = topic_tools.get_ancestor(node, ancestor_id)
+    #         if "nvideos_local" in ancestor:
+    #             del ancestor["nvideos_local"]
+    #         if "nvideos_known" in ancestor:
+    #             del ancestor["nvideos_known"]
+    #     return node
 
-    def recount_videos_and_invalidate_parents(node, force=False, stamp_urls=False):
-        """
-        Call stamp_video_availability (if necessary); if a change has been detected,
-        then check parents to see if their counts should be invalidated.
-        """
-        do_it = force
-        do_it = do_it or "nvideos_local" not in node
-        do_it = do_it or any(["nvideos_local" not in child for child in node.get("children", [])])
-        if do_it:
-            logging.debug("Adding video counts %s%sto topic (and all descendants) %s" % (
-                "(and urls) " if stamp_urls else "",
-                "(forced) " if force else "",
-                node["path"],
-            ))
-            (_a, _b, _c, _d, changed) = stamp_availability_on_topic(topic=node, force=force, stamp_urls=stamp_urls)
-            if changed:
-                strip_counts_from_ancestors(node)
-        return node
+    # def recount_videos_and_invalidate_parents(node, force=False, stamp_urls=False):
+    #     """
+    #     Call stamp_video_availability (if necessary); if a change has been detected,
+    #     then check parents to see if their counts should be invalidated.
+    #     """
+    #     do_it = force
+    #     do_it = do_it or "nvideos_local" not in node
+    #     do_it = do_it or any(["nvideos_local" not in child for child in node.get("children", [])])
+    #     if do_it:
+    #         logging.debug("Adding video counts %s%sto topic (and all descendants) %s" % (
+    #             "(and urls) " if stamp_urls else "",
+    #             "(forced) " if force else "",
+    #             node["path"],
+    #         ))
+    #         (_a, _b, _c, _d, changed) = stamp_availability_on_topic(topic=node, force=force, stamp_urls=stamp_urls)
+    #         if changed:
+    #             strip_counts_from_ancestors(node)
+    #     return node
 
     def refresh_topic_cache_wrapper_fn(request, cached_nodes={}, force=False, *args, **kwargs):
         """
@@ -117,33 +117,33 @@ def refresh_topic_cache(handler, force=False):
         if not cached_nodes:
             cached_nodes = {"topics": topic_tools.get_topic_tree()}
 
-        def has_computed_urls(node):
-            return "subtitles" in node.get("availability", {}).get("en", {})
+        # def has_computed_urls(node):
+        #     return "subtitles" in node.get("availability", {}).get("en", {})
 
-        for node in cached_nodes.values():
-            if not node:
-                continue
-            has_children = bool(node.get("children"))
+        # for node in cached_nodes.values():
+        #     if not node:
+        #         continue
+        #     has_children = bool(node.get("children"))
 
-            # Propertes not yet marked
-            if node["kind"] == "Video":
-                if force or not has_computed_urls(node):
-                    recount_videos_and_invalidate_parents(topic_tools.get_parent(node), force=True, stamp_urls=True)
+        #     # Propertes not yet marked
+        #     if node["kind"] == "Video":
+        #         if force or not has_computed_urls(node):
+        #             recount_videos_and_invalidate_parents(topic_tools.get_parent(node), force=True, stamp_urls=True)
 
-            elif node["kind"] == "Exercise":
-                for video in topic_tools.get_related_videos(exercise=node).values():
-                    if not has_computed_urls(node):
-                        stamp_availability_on_video(video, force=True)  # will be done by force below
+        #     elif node["kind"] == "Exercise":
+        #         for video in topic_tools.get_related_videos(exercise=node).values():
+        #             if not has_computed_urls(node):
+        #                 stamp_availability_on_video(video, force=True)  # will be done by force below
 
-            elif node["kind"] == "Topic":
-                bottom_layer_topic =  "Topic" not in node["contains"]
-                # always run do_video_counts_need_update_question_mark(), to make sure the (internal) counts stay up to date.
-                force = do_video_counts_need_update_question_mark() or force or bottom_layer_topic
-                recount_videos_and_invalidate_parents(
-                    node,
-                    force=force,
-                    stamp_urls=bottom_layer_topic,
-                )
+        #     elif node["kind"] == "Topic":
+        #         bottom_layer_topic =  "Topic" not in node["contains"]
+        #         # always run do_video_counts_need_update_question_mark(), to make sure the (internal) counts stay up to date.
+        #         force = do_video_counts_need_update_question_mark() or force or bottom_layer_topic
+        #         recount_videos_and_invalidate_parents(
+        #             node,
+        #             force=force,
+        #             stamp_urls=bottom_layer_topic,
+        #         )
 
         kwargs.update(cached_nodes)
         return handler(request, *args, **kwargs)
@@ -192,7 +192,7 @@ def topic_context(topic):
     videos    = topic_tools.get_videos(topic)
     exercises = topic_tools.get_exercises(topic)
     topics    = topic_tools.get_live_topics(topic)
-    my_topics = [dict((k, t[k]) for k in ('title', 'path', 'nvideos_local', 'nvideos_known', 'nvideos_available', 'available')) for t in topics]
+    my_topics = [dict((k, t[k]) for k in ('title', 'path')) for t in topics]
 
     exercises_path = os.path.join(settings.KHAN_EXERCISES_DIRPATH, "exercises")
     exercise_langs = dict([(exercise["id"], ["en"]) for exercise in exercises])
