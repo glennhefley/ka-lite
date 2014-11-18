@@ -106,7 +106,6 @@ INSTALLED_APPS = (
     "django_extensions", # needed for clean_pyc (testing)
     "kalite.distributed",
     "kalite.store",
-    "fle_utils.flexmodels",
 )
 
 if not BUILT:
