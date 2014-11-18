@@ -68,16 +68,12 @@ class FlexModel(ExtendedModel):
             if kwarg not in self._meta.field_names:
                 extra_fields[kwarg] = kwargs.pop(kwarg)
 
-        super(FlexModel, self).__init__(self, *args, **kwargs)
+        super(FlexModel, self).__init__(*args, **kwargs)
 
         self.extra_fields = extra_fields
 
     def to_dict(self):
         data = dict([(key, getattr(self, key)) for key in self._meta.field_names])
-
-        # If the model is not yet saved, its id may point to itself; use None instead
-        if isinstance(data.get("id"), self.__class__):
-            data["id"] = None
 
         # Mix the extra_fields into the top-level structure
         data.update(self.extra_fields)
@@ -95,11 +91,3 @@ class FlexModel(ExtendedModel):
 
     def to_json(self):
         return json.dumps(self.to_dict())
-
-class TestModel(FlexModel):
-
-    _model_identifier = "flexmodels.testmodel"
-
-    name = models.CharField(max_length=10)
-    age = models.IntegerField()
-    description = models.TextField()
