@@ -248,7 +248,7 @@ class CachedPassword(models.Model):
     """
     Local store of password hashes, using a locally settable # of password hash iterations.
     """
-    user = models.ForeignKey("FacilityUser", unique=True)
+    user = models.ForeignKey(FacilityUser, unique=True)
     password = models.CharField(max_length=128)
 
     @classmethod

@@ -1,48 +1,49 @@
 import json
+
 from django.db import models
-# from annoying.fields import JSONField
-# from django_extensions.db.fields.json import JSONField
+from django.db.models.base import ModelBase
+from django.db.models.signals import pre_delete
+from django.dispatch import receiver
+
 from fle_utils.django_utils import ExtendedModel
-from django.core.serializers.json import DjangoJSONEncoder
 
-class JSONField(models.TextField):
+from .fields import JSONField
+from .sync import register_syncing_model
+
+""" TODO
+    - clear "serialized" field when changing other fields (to mark "dirty" and force reserialization)
+    - Handle the case of two zombie models from other devices with same ID needing to be merged.
+"""
+
+class FlexModelMetaclass(ModelBase):
     """
-    JSONField is a generic textfield that neatly serializes/unserializes
-    JSON objects seamlessly.
-    Django snippet #1478
-
-    example:
-        class Page(models.Model):
-            data = JSONField(blank=True, null=True)
-
-
-        page = Page.objects.get(pk=5)
-        page.data = {'title': 'test', 'type': 3}
-        page.save()
+    This class does the following:
+        * adds a signal listener to prevent any deletes from ever happening
+        * adds subclasses of FlexModel to the set of syncing models
     """
 
-    __metaclass__ = models.SubfieldBase
+    def __init__(cls, name, bases, clsdict):
 
-    def to_python(self, value):
-        if value == "":
-            return None
+        # TODO(jamalex): do we need this conditional?
+        if len(cls.mro()) > 4 and not cls._meta.abstract:
 
-        try:
-            if isinstance(value, basestring):
-                return json.loads(value)
-        except ValueError:
-            pass
-        return value
+            # Add the deletion signal listener.
+            if not hasattr(cls, "_do_not_delete_signal"):
+                @receiver(pre_delete, sender=cls)
+                def disallow_delete(sender, instance, **kwargs):
+                    if not getattr(settings, "DEBUG_ALLOW_DELETIONS", False):
+                        raise NotImplementedError("Objects of FlexModel subclasses (like %s) cannot be deleted." % instance.__class__)
+                cls._do_not_delete_signal = disallow_delete  # don't let Python destroy this fn on __init__ completion.
 
-    def get_db_prep_save(self, value, *args, **kwargs):
-        if value == "":
-            return None
-        if isinstance(value, dict):
-            value = json.dumps(value, cls=DjangoJSONEncoder)
-        return super(JSONField, self).get_db_prep_save(value, *args, **kwargs)
+            # Add subclass to set of syncing models.
+            register_syncing_model(cls)
+
+        super(FlexModelMetaclass, cls).__init__(name, bases, clsdict)
 
 
 class FlexModel(ExtendedModel):
+
+    __metaclass__ = FlexModelMetaclass
 
     class Meta:
         abstract = True
@@ -52,6 +53,10 @@ class FlexModel(ExtendedModel):
 
     _unserialized_fields = ["extra_fields", "serialized"]
     _model_identifier = None
+
+    @classmethod
+    def deserialize(cls, serialized_model):
+        return clas(**json.loads(serialized_model))
 
     def __init__(self, *args, **kwargs):
 
@@ -80,14 +85,34 @@ class FlexModel(ExtendedModel):
 
         return data
 
+    def get_model_identifier(self):
+        return self._model_identifier
+
     def get_serialized(self):
         if not self.serialized:
             self.serialized = json.dumps({
-                "model": self._model_identifier,
+                "model": self.get_model_identifier(),
                 "data": self.to_json(),
             })
-            # self.save()
+            self.save()
         return self.serialized
 
     def to_json(self):
         return json.dumps(self.to_dict())
+
+
+def ZombieModel(FlexModel):
+    """A ZombieModel is used to store records that could not be imported into
+    a specific subclass of FlexModel (either because it didn't exist, or there
+    was an error). We remember the original model_identifier so we can
+    re-serialize the model properly later.
+    """
+
+    _unserialized_fields = FlexModel._unserialized_fields + ["model_identifier", "error"]
+    _model_identifier = "zombie"
+
+    model_identifier = models.CharField(max_length=100)
+    error = models.TextField()
+
+    def get_model_identifier(self):
+        return self.model_identifier
