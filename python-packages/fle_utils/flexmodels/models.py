@@ -89,7 +89,12 @@ class FlexModel(ExtendedModel):
         return self._model_identifier
 
     def get_serialized(self):
+        # if not already serialized since last modification, serialize now
         if not self.serialized:
+            # if the model is new, we need to save first to get an ID
+            if not self.id:
+                self.save()
+            # serialize to JSON and store in "serialized" field
             self.serialized = json.dumps({
                 "model": self.get_model_identifier(),
                 "data": self.to_json(),
@@ -97,8 +102,15 @@ class FlexModel(ExtendedModel):
             self.save()
         return self.serialized
 
+    def __setattr__(self, attrname, attrval):
+        # if we're changing a field, clear the serialized field as well
+        if (attrname in self._meta.field_names) and (attrname != "serialized"):
+            self.serialized = ""
+        super(FlexModel, self).__setattr__(attrname, attrval)
+
     def to_json(self):
         return json.dumps(self.to_dict())
+
 
 
 def ZombieModel(FlexModel):
