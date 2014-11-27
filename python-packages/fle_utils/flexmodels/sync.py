@@ -38,6 +38,9 @@ def register_syncing_model(model):
 
     # Add the model to the lookup dict
     if model._model_identifier:
+        # Ensure that we haven't already added this model, or one with the same identifier
+        if model._model_identifier in _syncing_model_dict:
+            raise Exception("Syncing model with _model_identifier '%s' added twice." % model._model_identifier)
         _syncing_model_dict[model._model_identifier] = model
 
     # When we add models to be synced, we need to make sure
